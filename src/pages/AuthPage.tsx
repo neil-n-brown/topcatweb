@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
-import { Heart, Mail, Lock, User, Eye, EyeOff } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Heart, Mail, Lock, User, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { isDemoMode } from '../lib/supabase'
+import { isDemoMode, authHelpers } from '../lib/supabase'
 
 export default function AuthPage() {
-  const { signUp, signIn, resetPassword } = useAuth()
+  const { signUp, signIn, resetPassword, error, clearError, refreshSession } = useAuth()
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -12,6 +12,20 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+
+  // Clear errors when switching modes
+  useEffect(() => {
+    clearError()
+    setMessage('')
+  }, [mode, clearError])
+
+  // Clear messages after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(''), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [message])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,6 +37,7 @@ export default function AuthPage() {
     
     setLoading(true)
     setMessage('')
+    clearError()
 
     try {
       if (mode === 'signup') {
@@ -39,21 +54,46 @@ export default function AuthPage() {
       }
     } catch (error: any) {
       console.error('Auth error:', error)
+      let errorMessage = error.message || 'An error occurred. Please try again.'
+      
       if (error.message.includes('Demo mode')) {
-        setMessage('Demo mode - Supabase authentication is not configured. You can still browse the landing page!')
+        errorMessage = 'Demo mode - Supabase authentication is not configured. You can still browse the landing page!'
       } else if (error.message.includes('Invalid login credentials')) {
-        setMessage('Invalid email or password. Please check your credentials and try again.')
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.'
       } else if (error.message.includes('User already registered')) {
-        setMessage('An account with this email already exists. Please sign in instead.')
+        errorMessage = 'An account with this email already exists. Please sign in instead.'
       } else if (error.message.includes('Password should be at least 6 characters')) {
-        setMessage('Password must be at least 6 characters long.')
-      } else {
-        setMessage(error.message || 'An error occurred. Please try again.')
+        errorMessage = 'Password must be at least 6 characters long.'
+      } else if (error.message.includes('session') || error.message.includes('token')) {
+        errorMessage = 'Session error detected. Cleaning up and retrying...'
+        // Clean up corrupted sessions and retry
+        authHelpers.cleanupCorruptedSessions()
+        setTimeout(() => {
+          setLoading(false)
+          setMessage('Session cleaned up. Please try again.')
+        }, 1000)
+        return
       }
+      
+      setMessage(errorMessage)
     } finally {
       setLoading(false)
     }
   }
+
+  const handleRefreshSession = async () => {
+    setLoading(true)
+    try {
+      await refreshSession()
+      setMessage('Session refreshed successfully!')
+    } catch (error) {
+      setMessage('Failed to refresh session. Please try signing in again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const displayMessage = message || error
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-50 flex items-center justify-center p-4">
@@ -90,13 +130,32 @@ export default function AuthPage() {
             </div>
           )}
 
-          {message && (
+          {/* Error/Message Display */}
+          {displayMessage && (
             <div className={`p-4 rounded-lg mb-6 ${
-              message.includes('error') || message.includes('Error') || message.includes('Demo mode') || message.includes('Invalid')
+              displayMessage.includes('error') || 
+              displayMessage.includes('Error') || 
+              displayMessage.includes('Demo mode') || 
+              displayMessage.includes('Invalid') ||
+              displayMessage.includes('Failed')
                 ? 'bg-red-100 text-red-700 border border-red-200'
                 : 'bg-green-100 text-green-700 border border-green-200'
             }`}>
-              {message}
+              <div className="flex items-start">
+                <div className="flex-1">
+                  {displayMessage}
+                </div>
+                {displayMessage.includes('Session') && (
+                  <button
+                    onClick={handleRefreshSession}
+                    disabled={loading}
+                    className="ml-2 p-1 text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                    title="Refresh Session"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -116,7 +175,8 @@ export default function AuthPage() {
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Choose a username"
                     required={mode === 'signup'}
-                    disabled={isDemoMode}
+                    disabled={isDemoMode || loading}
+                    maxLength={30}
                   />
                 </div>
               </div>
@@ -136,7 +196,7 @@ export default function AuthPage() {
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Enter your email"
                   required
-                  disabled={isDemoMode}
+                  disabled={isDemoMode || loading}
                 />
               </div>
             </div>
@@ -157,13 +217,13 @@ export default function AuthPage() {
                     placeholder="Enter your password"
                     required
                     minLength={6}
-                    disabled={isDemoMode}
+                    disabled={isDemoMode || loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed"
-                    disabled={isDemoMode}
+                    disabled={isDemoMode || loading}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -203,6 +263,7 @@ export default function AuthPage() {
                     <button
                       onClick={() => setMode('signup')}
                       className="text-orange-500 hover:text-orange-600 font-medium"
+                      disabled={loading}
                     >
                       Sign up
                     </button>
@@ -210,6 +271,7 @@ export default function AuthPage() {
                   <button
                     onClick={() => setMode('reset')}
                     className="text-sm text-gray-500 hover:text-gray-700"
+                    disabled={loading}
                   >
                     Forgot your password?
                   </button>
@@ -222,6 +284,7 @@ export default function AuthPage() {
                   <button
                     onClick={() => setMode('signin')}
                     className="text-orange-500 hover:text-orange-600 font-medium"
+                    disabled={loading}
                   >
                     Sign in
                   </button>
@@ -234,6 +297,7 @@ export default function AuthPage() {
                   <button
                     onClick={() => setMode('signin')}
                     className="text-orange-500 hover:text-orange-600 font-medium"
+                    disabled={loading}
                   >
                     Sign in
                   </button>
@@ -268,6 +332,10 @@ export default function AuthPage() {
                 src={src}
                 alt="Sample cat"
                 className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.src = `https://via.placeholder.com/48x48/ff6b35/ffffff?text=Cat${index + 1}`
+                }}
               />
             ))}
           </div>

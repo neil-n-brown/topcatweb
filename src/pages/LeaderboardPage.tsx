@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react'
-import { Trophy, TrendingUp, Clock } from 'lucide-react'
-import { supabase, Cat, isDemoMode } from '../lib/supabase'
+import { Trophy, TrendingUp, Clock, ExternalLink } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { supabase, isDemoMode } from '../lib/supabase'
 
-interface LeaderboardCat extends Cat {
+// Enhanced leaderboard cat interface with profile information
+interface LeaderboardCat {
+  id: string
+  user_id: string
+  name: string
+  description?: string
+  caption?: string
+  image_url: string
+  upload_date: string
+  cat_profile_id?: string
+  username: string
+  email?: string
   reaction_count: number
   recent_reactions?: number
+  cat_profile_name?: string
+  cat_profile_id_value?: string
 }
 
 // Demo data for when Supabase is not configured
@@ -16,8 +30,10 @@ const demoCats: LeaderboardCat[] = [
     description: 'A fluffy orange tabby who loves to play',
     image_url: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'demo_user', created_at: new Date().toISOString() },
-    reaction_count: 1247
+    username: 'demo_user',
+    reaction_count: 1247,
+    cat_profile_name: 'Whiskers',
+    cat_profile_id_value: '1'
   },
   {
     id: '2',
@@ -26,8 +42,10 @@ const demoCats: LeaderboardCat[] = [
     description: 'A beautiful black cat with green eyes',
     image_url: 'https://images.pexels.com/photos/416160/pexels-photo-416160.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'cat_lover', created_at: new Date().toISOString() },
-    reaction_count: 892
+    username: 'cat_lover',
+    reaction_count: 892,
+    cat_profile_name: 'Luna',
+    cat_profile_id_value: '2'
   },
   {
     id: '3',
@@ -36,8 +54,10 @@ const demoCats: LeaderboardCat[] = [
     description: 'Loves to sleep in sunny spots',
     image_url: 'https://images.pexels.com/photos/1170986/pexels-photo-1170986.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'kitty_fan', created_at: new Date().toISOString() },
-    reaction_count: 756
+    username: 'kitty_fan',
+    reaction_count: 756,
+    cat_profile_name: 'Mittens',
+    cat_profile_id_value: '3'
   }
 ]
 
@@ -64,19 +84,55 @@ export default function LeaderboardPage() {
         return
       }
 
-      // Use the new leaderboard view for better performance and reliability
+      // Enhanced query to get cat profile information
       const { data: topData, error: topError } = await supabase
-        .from('leaderboard_cats')
-        .select('*')
+        .from('cats')
+        .select(`
+          *,
+          user:users(username, email),
+          cat_profile:cat_profiles(id, name),
+          reaction_count:reactions(count)
+        `)
+        .not('cat_profile_id', 'is', null) // Only show cats with profiles
         .order('reaction_count', { ascending: false })
         .limit(10)
 
       if (topError) {
         console.error('Error fetching top cats:', topError)
-        throw topError
+        
+        // Fallback to the leaderboard view if the enhanced query fails
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('leaderboard_cats')
+          .select('*')
+          .order('reaction_count', { ascending: false })
+          .limit(10)
+
+        if (fallbackError) {
+          throw fallbackError
+        }
+
+        setTopCats((fallbackData || []).map(cat => ({
+          ...cat,
+          cat_profile_name: cat.name,
+          cat_profile_id_value: cat.id
+        })))
+      } else {
+        // Process the enhanced data
+        const processedTopData = (topData || []).map(cat => ({
+          ...cat,
+          username: cat.user?.username || 'Unknown',
+          email: cat.user?.email,
+          reaction_count: cat.reaction_count?.length || 0,
+          cat_profile_name: cat.cat_profile?.name || cat.name,
+          cat_profile_id_value: cat.cat_profile?.id || cat.cat_profile_id
+        }))
+
+        // Sort by reaction count
+        processedTopData.sort((a, b) => b.reaction_count - a.reaction_count)
+        setTopCats(processedTopData)
       }
 
-      // Use the trending view for recent reactions
+      // Get trending cats (last 24 hours)
       const { data: trendingData, error: trendingError } = await supabase
         .from('trending_cats')
         .select('*')
@@ -85,26 +141,23 @@ export default function LeaderboardPage() {
 
       if (trendingError) {
         console.error('Error fetching trending cats:', trendingError)
-        // If trending view fails, fall back to regular query
-        const fallbackData = topData?.slice(0, 5) || []
-        setTrendingCats(fallbackData.map(cat => ({
+        // Use top cats as fallback for trending
+        const fallbackTrending = topData?.slice(0, 5) || []
+        setTrendingCats(fallbackTrending.map(cat => ({
           ...cat,
-          user: { id: cat.user_id, email: cat.email || '', username: cat.username || 'Unknown', created_at: '' },
-          recent_reactions: Math.floor(cat.reaction_count * 0.3)
+          username: cat.user?.username || 'Unknown',
+          recent_reactions: Math.floor((cat.reaction_count?.length || 0) * 0.3),
+          cat_profile_name: cat.cat_profile?.name || cat.name,
+          cat_profile_id_value: cat.cat_profile?.id || cat.cat_profile_id
         })))
       } else {
         setTrendingCats((trendingData || []).map(cat => ({
           ...cat,
-          user: { id: cat.user_id, email: cat.email || '', username: cat.username || 'Unknown', created_at: '' },
-          recent_reactions: cat.recent_reaction_count
+          recent_reactions: cat.recent_reaction_count,
+          cat_profile_name: cat.name,
+          cat_profile_id_value: cat.id
         })))
       }
-
-      // Process top cats data
-      setTopCats((topData || []).map(cat => ({
-        ...cat,
-        user: { id: cat.user_id, email: cat.email || '', username: cat.username || 'Unknown', created_at: '' }
-      })))
 
     } catch (error: any) {
       console.error('Error fetching leaderboards:', error)
@@ -142,7 +195,7 @@ export default function LeaderboardPage() {
         <div className="flex-shrink-0 w-16 h-16 ml-4">
           <img
             src={cat.image_url}
-            alt={cat.name}
+            alt={cat.cat_profile_name || cat.name}
             className="w-full h-full object-cover rounded-lg"
             onError={(e) => {
               const target = e.target as HTMLImageElement
@@ -153,9 +206,40 @@ export default function LeaderboardPage() {
 
         {/* Cat Info */}
         <div className="flex-1 ml-4 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900 truncate">{cat.name}</h3>
-          <p className="text-sm text-gray-600">by @{cat.user?.username || 'Unknown'}</p>
-          <div className="flex items-center mt-1">
+          <div className="flex items-center space-x-2 mb-1">
+            {/* Cat Profile Name - Clickable */}
+            {cat.cat_profile_id_value && !isDemoMode ? (
+              <Link
+                to={`/cat-profile/${cat.cat_profile_id_value}`}
+                className="text-lg font-semibold text-gray-900 hover:text-orange-600 transition-colors truncate flex items-center"
+              >
+                {cat.cat_profile_name || cat.name}
+                <ExternalLink className="w-3 h-3 ml-1 opacity-60" />
+              </Link>
+            ) : (
+              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                {cat.cat_profile_name || cat.name}
+              </h3>
+            )}
+          </div>
+          
+          {/* Owner Name - Clickable */}
+          <div className="flex items-center space-x-1 mb-2">
+            <span className="text-sm text-gray-500">by</span>
+            {!isDemoMode ? (
+              <Link
+                to={`/user/${cat.user_id}`}
+                className="text-sm text-gray-600 hover:text-orange-600 transition-colors flex items-center"
+              >
+                @{cat.username}
+                <ExternalLink className="w-3 h-3 ml-1 opacity-60" />
+              </Link>
+            ) : (
+              <span className="text-sm text-gray-600">@{cat.username}</span>
+            )}
+          </div>
+          
+          <div className="flex items-center">
             <span className="text-sm font-medium text-orange-600">
               {showTrending ? (cat.recent_reactions || 0) : cat.reaction_count} reactions
             </span>
@@ -187,7 +271,7 @@ export default function LeaderboardPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Leaderboard</h1>
-          <p className="text-gray-600">Discover the most beloved cats in our community</p>
+          <p className="text-gray-600">Discover the most beloved cat profiles in our community</p>
           {isDemoMode && (
             <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
               <p className="text-yellow-800 text-sm">Demo Mode: Showing sample leaderboard data</p>
@@ -219,7 +303,7 @@ export default function LeaderboardPage() {
             }`}
           >
             <Trophy className="w-5 h-5 mr-2" />
-            Top Cats
+            Top Cat Profiles
           </button>
           <button
             onClick={() => setActiveTab('trending')}
@@ -248,8 +332,14 @@ export default function LeaderboardPage() {
             ) : (
               <div className="text-center py-12">
                 <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No cats yet!</h3>
-                <p className="text-gray-600">Be the first to upload a cat and start the competition.</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No cat profiles yet!</h3>
+                <p className="text-gray-600 mb-4">Create cat profiles and upload photos to start the competition.</p>
+                <Link
+                  to="/cat-profiles"
+                  className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Create Cat Profile
+                </Link>
               </div>
             )
           ) : (
@@ -266,10 +356,28 @@ export default function LeaderboardPage() {
               <div className="text-center py-12">
                 <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No trending cats!</h3>
-                <p className="text-gray-600">Start swiping to see which cats are trending today.</p>
+                <p className="text-gray-600 mb-4">Start swiping to see which cat profiles are trending today.</p>
+                <Link
+                  to="/swipe"
+                  className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Start Swiping
+                </Link>
               </div>
             )
           )}
+        </div>
+
+        {/* Info Box */}
+        <div className="mt-8 bg-blue-50 rounded-lg p-4">
+          <h3 className="font-medium text-blue-900 mb-2">How Rankings Work</h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• <strong>Top Cat Profiles:</strong> Ranked by total reactions across all photos</li>
+            <li>• <strong>Trending:</strong> Based on reactions received in the last 24 hours</li>
+            <li>• Click on cat profile names to view detailed profiles</li>
+            <li>• Click on owner names to view their profile pages</li>
+            <li>• Only cats with complete profiles are eligible for rankings</li>
+          </ul>
         </div>
       </div>
     </div>
