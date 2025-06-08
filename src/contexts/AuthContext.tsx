@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Initialize auth with simplified error handling
+    // Initialize auth with proper refresh token error handling
     const initializeAuth = async () => {
       try {
         console.log('Initializing Supabase auth...')
@@ -106,7 +106,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('Error getting session:', error)
-          // Don't throw error, just log it and continue
+          
+          // Check if the error is related to invalid refresh token
+          if (error.message?.includes('Refresh Token Not Found') || 
+              error.message?.includes('Invalid Refresh Token') ||
+              error.message?.includes('refresh_token_not_found')) {
+            console.log('Invalid refresh token detected, clearing session...')
+            
+            // Clear the corrupted session data
+            try {
+              await supabase.auth.signOut()
+              console.log('Corrupted session cleared successfully')
+            } catch (signOutError) {
+              console.error('Error clearing corrupted session:', signOutError)
+            }
+            
+            // Reset state to logged out
+            if (mounted) {
+              setUser(null)
+              setSupabaseUser(null)
+              setError('Your session has expired. Please sign in again.')
+              setLoading(false)
+            }
+            return
+          }
+          
+          // For other errors, don't throw but continue with initialization
+          console.warn('Session error (continuing):', error.message)
         }
         
         console.log('Session retrieved:', !!session)
@@ -123,17 +149,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error: any) {
         console.error('Error initializing auth:', error)
-        setError('Failed to initialize authentication. Please refresh the page.')
         
-        if (mounted) {
-          setLoading(false)
+        // Check if this is a refresh token error
+        if (error.message?.includes('Refresh Token Not Found') || 
+            error.message?.includes('Invalid Refresh Token') ||
+            error.message?.includes('refresh_token_not_found')) {
+          console.log('Refresh token error during initialization, clearing session...')
+          
+          try {
+            await supabase.auth.signOut()
+          } catch (signOutError) {
+            console.error('Error clearing session after refresh token error:', signOutError)
+          }
+          
+          if (mounted) {
+            setUser(null)
+            setSupabaseUser(null)
+            setError('Your session has expired. Please sign in again.')
+            setLoading(false)
+          }
+        } else {
+          setError('Failed to initialize authentication. Please refresh the page.')
+          if (mounted) {
+            setLoading(false)
+          }
         }
       }
     }
 
     initializeAuth()
 
-    // Listen for auth changes with simplified error handling
+    // Listen for auth changes with improved error handling
     let subscription: any
     try {
       const { data } = supabase.auth.onAuthStateChange(
@@ -151,9 +197,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (session?.user) {
             try {
               await fetchUserProfile(session.user.id)
-            } catch (error) {
+            } catch (error: any) {
               console.error('Error fetching profile after auth change:', error)
-              setError('Failed to load user profile')
+              
+              // Handle refresh token errors in profile fetching
+              if (error.message?.includes('Refresh Token Not Found') || 
+                  error.message?.includes('Invalid Refresh Token')) {
+                console.log('Refresh token error during profile fetch, signing out...')
+                await handleSignOut(true)
+                setError('Your session has expired. Please sign in again.')
+              } else {
+                setError('Failed to load user profile')
+              }
             }
           } else {
             setUser(null)
@@ -190,6 +245,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error fetching user profile:', error)
+        
+        // Check for refresh token errors in database queries
+        if (error.message?.includes('Refresh Token Not Found') || 
+            error.message?.includes('Invalid Refresh Token')) {
+          throw new Error('Invalid Refresh Token')
+        }
+        
         // If user profile doesn't exist, they might need to complete registration
         setUser(null)
         setError('User profile not found. Please complete registration.')
@@ -200,6 +262,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error('Error fetching user profile:', error)
+      
+      // Re-throw refresh token errors to be handled by caller
+      if (error.message?.includes('Invalid Refresh Token') ||
+          error.message?.includes('Refresh Token Not Found')) {
+        throw error
+      }
+      
       setUser(null)
       setError('Failed to load user profile')
     } finally {
@@ -326,20 +395,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) {
         console.error('Session refresh error:', error)
-        setError('Session expired. Please sign in again.')
-        await handleSignOut(false)
+        
+        // Handle refresh token errors specifically
+        if (error.message?.includes('Refresh Token Not Found') || 
+            error.message?.includes('Invalid Refresh Token') ||
+            error.message?.includes('refresh_token_not_found')) {
+          console.log('Invalid refresh token during manual refresh, signing out...')
+          await handleSignOut(true)
+          setError('Your session has expired. Please sign in again.')
+        } else {
+          setError('Session expired. Please sign in again.')
+          await handleSignOut(false)
+        }
         return
       }
       
       if (data.session?.user) {
-        await fetchUserProfile(data.session.user.id)
+        try {
+          await fetchUserProfile(data.session.user.id)
+        } catch (profileError: any) {
+          if (profileError.message?.includes('Invalid Refresh Token')) {
+            console.log('Refresh token error during profile fetch after refresh, signing out...')
+            await handleSignOut(true)
+            setError('Your session has expired. Please sign in again.')
+          } else {
+            throw profileError
+          }
+        }
       }
       
       console.log('Session refreshed successfully')
     } catch (error: any) {
       console.error('Session refresh failed:', error)
-      setError('Failed to refresh session')
-      await handleSignOut(false)
+      
+      if (error.message?.includes('Invalid Refresh Token') ||
+          error.message?.includes('Refresh Token Not Found')) {
+        await handleSignOut(true)
+        setError('Your session has expired. Please sign in again.')
+      } else {
+        setError('Failed to refresh session')
+        await handleSignOut(false)
+      }
     }
   }
 
