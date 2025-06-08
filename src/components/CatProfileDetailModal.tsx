@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { X, Edit3, Save, Camera, Heart, Calendar, MapPin } from 'lucide-react'
-import { supabase, Cat, isDemoMode } from '../lib/supabase'
+import { supabase, Cat, isDemoMode, authHelpers } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
 interface CatProfile {
@@ -58,6 +58,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
   const { user } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [photos, setPhotos] = useState<(Cat & { reaction_count: number })[]>([])
   const [photosLoading, setPhotosLoading] = useState(true)
   const [formData, setFormData] = useState({
@@ -82,10 +83,18 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
 
   const fetchProfilePhotos = async () => {
     try {
+      setError(null)
+      
       if (isDemoMode) {
         setPhotos(demoPhotos)
         setPhotosLoading(false)
         return
+      }
+
+      // Test storage access before making database calls
+      const hasStorageAccess = authHelpers.testStorageAccess()
+      if (!hasStorageAccess) {
+        console.warn('Cat Profile Detail - Limited storage access detected')
       }
 
       // Fetch photos linked to this cat profile with reaction counts
@@ -95,27 +104,50 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
         .eq('cat_profile_id', profile.id)
         .order('upload_date', { ascending: false })
 
-      if (catsError) throw catsError
+      if (catsError) {
+        if (catsError.message?.includes('storage')) {
+          console.warn('Storage error fetching photos, using demo data')
+          setPhotos(demoPhotos)
+          setError('Storage access is limited. Showing demo photos.')
+        } else {
+          throw catsError
+        }
+      } else {
+        // Get reaction counts for each photo
+        const photosWithReactions = await Promise.all(
+          (catsData || []).map(async (cat) => {
+            try {
+              const { count } = await supabase
+                .from('reactions')
+                .select('*', { count: 'exact', head: true })
+                .eq('cat_id', cat.id)
 
-      // Get reaction counts for each photo
-      const photosWithReactions = await Promise.all(
-        (catsData || []).map(async (cat) => {
-          const { count } = await supabase
-            .from('reactions')
-            .select('*', { count: 'exact', head: true })
-            .eq('cat_id', cat.id)
+              return {
+                ...cat,
+                reaction_count: count || 0
+              }
+            } catch (error: any) {
+              console.warn('Error fetching reaction count for cat:', cat.id, error)
+              return {
+                ...cat,
+                reaction_count: 0
+              }
+            }
+          })
+        )
 
-          return {
-            ...cat,
-            reaction_count: count || 0
-          }
-        })
-      )
-
-      setPhotos(photosWithReactions)
-    } catch (error) {
+        setPhotos(photosWithReactions)
+      }
+    } catch (error: any) {
       console.error('Error fetching profile photos:', error)
-      setPhotos(demoPhotos)
+      
+      if (error.message?.includes('storage')) {
+        setError('Storage access is limited. Using demo photos.')
+        setPhotos(demoPhotos)
+      } else {
+        setError('Failed to load photos. Please try again.')
+        setPhotos(demoPhotos)
+      }
     } finally {
       setPhotosLoading(false)
     }
@@ -130,16 +162,17 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
     const file = e.target.files?.[0]
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file')
+        setError('Please select an image file')
         return
       }
 
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image must be smaller than 5MB')
+        setError('Image must be smaller than 5MB')
         return
       }
 
       setNewProfilePicture(file)
+      setError(null)
       
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -151,16 +184,24 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
 
   const handleSave = async () => {
     if (!user || !formData.name.trim()) {
-      alert('Please enter a name for your cat')
+      setError('Please enter a name for your cat')
       return
     }
 
     if (isDemoMode) {
-      alert('Demo mode - editing not available')
+      setError('Demo mode - editing not available')
+      return
+    }
+
+    // Test storage access before proceeding
+    const hasStorageAccess = authHelpers.testStorageAccess()
+    if (!hasStorageAccess) {
+      setError('Storage access is limited. Profile editing may not work properly.')
       return
     }
 
     setLoading(true)
+    setError(null)
 
     try {
       let profilePictureUrl = profile.profile_picture
@@ -174,7 +215,12 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
           .from('cat-photos')
           .upload(fileName, newProfilePicture)
 
-        if (uploadError) throw uploadError
+        if (uploadError) {
+          if (uploadError.message?.includes('storage')) {
+            throw new Error('Storage access is limited. Unable to upload new profile picture.')
+          }
+          throw uploadError
+        }
 
         const { data: { publicUrl } } = supabase.storage
           .from('cat-photos')
@@ -199,21 +245,34 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
         play_time_preference: formData.play_time_preference.trim() || null
       }
 
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('cat_profiles')
         .update(updateData)
         .eq('id', profile.id)
         .eq('user_id', user.id)
 
-      if (error) throw error
+      if (updateError) {
+        if (updateError.message?.includes('storage')) {
+          throw new Error('Storage access is limited. Unable to update profile.')
+        }
+        throw updateError
+      }
 
       setIsEditing(false)
       setNewProfilePicture(null)
       setProfilePicturePreview(null)
       onSuccess()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating cat profile:', error)
-      alert('Failed to update cat profile. Please try again.')
+      
+      if (error.message?.includes('storage') || 
+          error.message?.includes('Access to storage is not allowed')) {
+        setError('Storage access is limited. Unable to update profile.')
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        setError('Network error. Please check your connection and try again.')
+      } else {
+        setError(error.message || 'Failed to update cat profile. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -254,6 +313,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
               <button
                 onClick={() => setIsEditing(true)}
                 className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={!authHelpers.testStorageAccess()}
               >
                 <Edit3 className="w-5 h-5" />
               </button>
@@ -268,6 +328,22 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
         </div>
 
         <div className="p-6">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Storage Warning */}
+          {!authHelpers.testStorageAccess() && (
+            <div className="mb-6 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
+              <p className="text-yellow-800 text-sm">
+                Storage access is limited. Some features may not work properly.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Profile Information */}
             <div className="lg:col-span-1">
@@ -294,10 +370,13 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         onChange={handleImageChange}
                         className="hidden"
                         id="profile-picture-edit"
+                        disabled={loading}
                       />
                       <label
                         htmlFor="profile-picture-edit"
-                        className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-orange-600 transition-colors"
+                        className={`w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-orange-600 transition-colors ${
+                          loading ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                       >
                         <Camera className="w-4 h-4" />
                       </label>
@@ -319,6 +398,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         maxLength={50}
+                        disabled={loading}
                       />
                     </div>
 
@@ -332,6 +412,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         placeholder="e.g., 3 years"
                         maxLength={20}
+                        disabled={loading}
                       />
                     </div>
 
@@ -343,6 +424,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         value={formData.date_of_birth}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        disabled={loading}
                       />
                     </div>
 
@@ -355,6 +437,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         maxLength={50}
+                        disabled={loading}
                       />
                     </div>
 
@@ -365,6 +448,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         value={formData.sex}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        disabled={loading}
                       >
                         <option value="">Select...</option>
                         <option value="Male">Male</option>
@@ -381,6 +465,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         rows={3}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
                         maxLength={200}
+                        disabled={loading}
                       />
                     </div>
 
@@ -393,6 +478,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         maxLength={50}
+                        disabled={loading}
                       />
                     </div>
 
@@ -405,6 +491,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         maxLength={50}
+                        disabled={loading}
                       />
                     </div>
 
@@ -417,6 +504,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         maxLength={50}
+                        disabled={loading}
                       />
                     </div>
 
@@ -429,6 +517,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         maxLength={50}
+                        disabled={loading}
                       />
                     </div>
 
@@ -441,13 +530,14 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         maxLength={50}
+                        disabled={loading}
                       />
                     </div>
 
                     <div className="flex space-x-3 pt-4">
                       <button
                         onClick={handleSave}
-                        disabled={loading}
+                        disabled={loading || !formData.name.trim()}
                         className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 disabled:bg-gray-300 transition-colors flex items-center justify-center"
                       >
                         {loading ? (
@@ -467,6 +557,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                           setIsEditing(false)
                           setNewProfilePicture(null)
                           setProfilePicturePreview(null)
+                          setError(null)
                           setFormData({
                             name: profile.name,
                             date_of_birth: profile.date_of_birth || '',
@@ -482,6 +573,7 @@ export default function CatProfileDetailModal({ profile, onClose, onSuccess }: C
                           })
                         }}
                         className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        disabled={loading}
                       >
                         Cancel
                       </button>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { X, Camera, Upload } from 'lucide-react'
-import { supabase, isDemoMode } from '../lib/supabase'
+import { supabase, isDemoMode, authHelpers } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
 interface CreateCatProfileModalProps {
@@ -26,6 +26,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
   const [profilePicture, setProfilePicture] = useState<File | null>(null)
   const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -36,16 +37,17 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
     const file = e.target.files?.[0]
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file')
+        setError('Please select an image file')
         return
       }
 
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image must be smaller than 5MB')
+        setError('Image must be smaller than 5MB')
         return
       }
 
       setProfilePicture(file)
+      setError(null)
       
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -64,16 +66,24 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
     e.preventDefault()
     
     if (!user || !formData.name.trim()) {
-      alert('Please enter a name for your cat')
+      setError('Please enter a name for your cat')
       return
     }
 
     if (isDemoMode) {
-      alert('Demo mode - profile creation not available')
+      setError('Demo mode - profile creation not available')
+      return
+    }
+
+    // Test storage access before proceeding
+    const hasStorageAccess = authHelpers.testStorageAccess()
+    if (!hasStorageAccess) {
+      setError('Storage access is limited. Profile creation may not work properly.')
       return
     }
 
     setLoading(true)
+    setError(null)
 
     try {
       let profilePictureUrl = null
@@ -87,7 +97,12 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
           .from('cat-photos')
           .upload(fileName, profilePicture)
 
-        if (uploadError) throw uploadError
+        if (uploadError) {
+          if (uploadError.message?.includes('storage')) {
+            throw new Error('Storage access is limited. Unable to upload profile picture.')
+          }
+          throw uploadError
+        }
 
         const { data: { publicUrl } } = supabase.storage
           .from('cat-photos')
@@ -113,16 +128,29 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
         play_time_preference: formData.play_time_preference.trim() || null
       }
 
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('cat_profiles')
         .insert([profileData])
 
-      if (error) throw error
+      if (insertError) {
+        if (insertError.message?.includes('storage')) {
+          throw new Error('Storage access is limited. Unable to create profile.')
+        }
+        throw insertError
+      }
 
       onSuccess()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating cat profile:', error)
-      alert('Failed to create cat profile. Please try again.')
+      
+      if (error.message?.includes('storage') || 
+          error.message?.includes('Access to storage is not allowed')) {
+        setError('Storage access is limited. Unable to create profile.')
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        setError('Network error. Please check your connection and try again.')
+      } else {
+        setError(error.message || 'Failed to create cat profile. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -144,6 +172,22 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Error Message */}
+          {error && (
+            <div className="p-4 bg-red-100 border border-red-300 rounded-lg">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Storage Warning */}
+          {!authHelpers.testStorageAccess() && (
+            <div className="p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
+              <p className="text-yellow-800 text-sm">
+                Storage access is limited. Profile creation may not work properly.
+              </p>
+            </div>
+          )}
+
           {/* Profile Picture */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -158,10 +202,13 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                   onChange={handleImageChange}
                   className="hidden"
                   id="profile-picture-upload"
+                  disabled={loading || isDemoMode}
                 />
                 <label
                   htmlFor="profile-picture-upload"
-                  className="cursor-pointer flex flex-col items-center"
+                  className={`cursor-pointer flex flex-col items-center ${
+                    loading || isDemoMode ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   <Camera className="w-8 h-8 text-gray-400 mb-2" />
                   <span className="text-sm font-medium text-gray-900">Upload Profile Picture</span>
@@ -179,6 +226,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                   type="button"
                   onClick={removeImage}
                   className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  disabled={loading}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -202,6 +250,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 placeholder="Enter cat's name"
                 required
                 maxLength={50}
+                disabled={loading}
               />
             </div>
 
@@ -218,6 +267,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="e.g., 3 years, 6 months"
                 maxLength={20}
+                disabled={loading}
               />
             </div>
 
@@ -232,6 +282,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 value={formData.date_of_birth}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                disabled={loading}
               />
             </div>
 
@@ -245,6 +296,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 value={formData.sex}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                disabled={loading}
               >
                 <option value="">Select...</option>
                 <option value="Male">Male</option>
@@ -265,6 +317,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="e.g., Persian, Maine Coon"
                 maxLength={50}
+                disabled={loading}
               />
             </div>
 
@@ -281,6 +334,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="e.g., Mom, Dad, Sarah"
                 maxLength={50}
+                disabled={loading}
               />
             </div>
           </div>
@@ -299,6 +353,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
               placeholder="Describe your cat's personality..."
               maxLength={200}
+              disabled={loading}
             />
           </div>
 
@@ -317,6 +372,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="e.g., Tuna, Chicken treats"
                 maxLength={50}
+                disabled={loading}
               />
             </div>
 
@@ -333,6 +389,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="e.g., Feather wand, Laser pointer"
                 maxLength={50}
+                disabled={loading}
               />
             </div>
 
@@ -349,6 +406,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="e.g., Treats, Outside"
                 maxLength={50}
+                disabled={loading}
               />
             </div>
 
@@ -365,6 +423,7 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="e.g., Morning, Evening"
                 maxLength={50}
+                disabled={loading}
               />
             </div>
           </div>
@@ -375,12 +434,13 @@ export default function CreateCatProfileModal({ onClose, onSuccess }: CreateCatP
               type="button"
               onClick={onClose}
               className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading || !formData.name.trim()}
+              disabled={loading || !formData.name.trim() || isDemoMode}
               className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center"
             >
               {loading ? (
