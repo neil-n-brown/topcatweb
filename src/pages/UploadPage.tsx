@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Upload, Camera, X, Star } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { supabase, isDemoMode } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -273,12 +274,12 @@ export default function UploadPage() {
                     <p className="text-sm text-blue-700 mb-2">
                       Organize your cat photos by creating detailed profiles for each of your cats.
                     </p>
-                    <a
-                      href="/cat-profiles"
-                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    <Link
+                      to="/cat-profiles"
+                      className="text-sm text-blue-600 hover:text-blue-800 underline transition-colors"
                     >
                       Create your first cat profile →
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </div>

@@ -77,9 +77,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
     let mounted = true
+    let initializationTimeout: NodeJS.Timeout
 
     // If we're in demo mode, create a demo user and skip auth initialization
     if (isDemoMode) {
@@ -93,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         setUser(demoUser)
         setLoading(false)
+        setIsInitialized(true)
       }
       return
     }
@@ -105,10 +108,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Storage access limited, authentication may not persist between sessions')
     }
 
-    // Initialize auth with enhanced error handling
+    // Initialize auth with enhanced error handling and timeout
     const initializeAuth = async () => {
       try {
         console.log('Initializing Supabase auth...')
+        
+        // Set a timeout for initialization to prevent hanging
+        initializationTimeout = setTimeout(() => {
+          if (mounted && !isInitialized) {
+            console.warn('Auth initialization timeout, proceeding without session')
+            setUser(null)
+            setSupabaseUser(null)
+            setLoading(false)
+            setIsInitialized(true)
+          }
+        }, 10000) // 10 second timeout
         
         // Wrap session retrieval in try-catch to handle storage errors
         let session = null
@@ -155,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setSupabaseUser(null)
               setError('Your session has expired. Please sign in again.')
               setLoading(false)
+              setIsInitialized(true)
             }
             return
           }
@@ -173,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             console.log('No user session found')
             setLoading(false)
+            setIsInitialized(true)
           }
         }
       } catch (error: any) {
@@ -187,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSupabaseUser(null)
             setError('Storage access is limited. Authentication may not persist between sessions.')
             setLoading(false)
+            setIsInitialized(true)
           }
           return
         }
@@ -208,12 +225,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSupabaseUser(null)
             setError('Your session has expired. Please sign in again.')
             setLoading(false)
+            setIsInitialized(true)
           }
         } else {
           setError('Failed to initialize authentication. Please refresh the page.')
           if (mounted) {
             setLoading(false)
+            setIsInitialized(true)
           }
+        }
+      } finally {
+        if (initializationTimeout) {
+          clearTimeout(initializationTimeout)
         }
       }
     }
@@ -227,6 +250,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         async (event, session) => {
           console.log('Auth state changed:', event, !!session)
           if (!mounted) return
+
+          // Don't process auth changes during initial load to prevent conflicts
+          if (!isInitialized && event !== 'INITIAL_SESSION') {
+            console.log('Skipping auth state change during initialization')
+            return
+          }
 
           // Clear any previous errors on successful auth state change
           if (session) {
@@ -270,11 +299,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (mounted) {
         setLoading(false)
+        setIsInitialized(true)
       }
     }
 
     return () => {
       mounted = false
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout)
+      }
       if (subscription) {
         subscription.unsubscribe()
       }
@@ -327,6 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       setLoading(false)
+      setIsInitialized(true)
     }
   }
 
