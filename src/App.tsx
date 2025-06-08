@@ -10,6 +10,8 @@ import UploadPage from './pages/UploadPage'
 import ProfilePage from './pages/ProfilePage'
 import CatProfilesPage from './pages/CatProfilesPage'
 import ErrorBoundary from './components/ErrorBoundary'
+import StorageErrorBoundary from './components/StorageErrorBoundary'
+import StorageWarning from './components/StorageWarning'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, error } = useAuth()
@@ -31,6 +33,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         <div className="text-center p-8 bg-white rounded-lg shadow-md max-w-md">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Authentication Error</h2>
           <p className="text-gray-600 mb-4">{error}</p>
+          <StorageWarning className="mb-4" />
           <button
             onClick={() => window.location.href = '/auth'}
             className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
@@ -46,7 +49,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/auth" replace />
   }
 
-  return <>{children}</>
+  return (
+    <StorageErrorBoundary>
+      {children}
+    </StorageErrorBoundary>
+  )
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -67,7 +74,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/swipe" replace />
   }
 
-  return <>{children}</>
+  return (
+    <StorageErrorBoundary>
+      {children}
+    </StorageErrorBoundary>
+  )
 }
 
 // 404 Page Component
@@ -102,67 +113,69 @@ function NotFoundPage() {
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Default route - always show landing page first */}
-            <Route path="/" element={<LandingPage />} />
-            
-            {/* Public routes */}
-            <Route path="/landing" element={<LandingPage />} />
-            
-            <Route path="/auth" element={
-              <PublicRoute>
-                <AuthPage />
-              </PublicRoute>
-            } />
+      <StorageErrorBoundary>
+        <AuthProvider>
+          <Router>
+            <Routes>
+              {/* Default route - always show landing page first */}
+              <Route path="/" element={<LandingPage />} />
+              
+              {/* Public routes */}
+              <Route path="/landing" element={<LandingPage />} />
+              
+              <Route path="/auth" element={
+                <PublicRoute>
+                  <AuthPage />
+                </PublicRoute>
+              } />
 
-            {/* Protected routes */}
-            <Route path="/swipe" element={
-              <Layout>
-                <ProtectedRoute>
-                  <SwipePage />
-                </ProtectedRoute>
-              </Layout>
-            } />
-            
-            <Route path="/leaderboard" element={
-              <Layout>
-                <ProtectedRoute>
-                  <LeaderboardPage />
-                </ProtectedRoute>
-              </Layout>
-            } />
-            
-            <Route path="/upload" element={
-              <Layout>
-                <ProtectedRoute>
-                  <UploadPage />
-                </ProtectedRoute>
-              </Layout>
-            } />
+              {/* Protected routes */}
+              <Route path="/swipe" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <SwipePage />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              
+              <Route path="/leaderboard" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <LeaderboardPage />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              
+              <Route path="/upload" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <UploadPage />
+                  </ProtectedRoute>
+                </Layout>
+              } />
 
-            <Route path="/cat-profiles" element={
-              <Layout>
-                <ProtectedRoute>
-                  <CatProfilesPage />
-                </ProtectedRoute>
-              </Layout>
-            } />
-            
-            <Route path="/profile" element={
-              <Layout>
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              </Layout>
-            } />
+              <Route path="/cat-profiles" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <CatProfilesPage />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              
+              <Route path="/profile" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                </Layout>
+              } />
 
-            {/* 404 route */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Router>
-      </AuthProvider>
+              {/* 404 route */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Router>
+        </AuthProvider>
+      </StorageErrorBoundary>
     </ErrorBoundary>
   )
 }
