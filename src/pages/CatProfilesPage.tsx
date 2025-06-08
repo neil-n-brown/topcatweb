@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Plus, Edit3, Trash2, Camera, Calendar, Heart, Star } from 'lucide-react'
 import { supabase, isDemoMode, authHelpers } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -70,31 +70,24 @@ export default function CatProfilesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedProfile, setSelectedProfile] = useState<CatProfile | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  const [storageInfo, setStorageInfo] = useState<{ type: string; available: boolean } | null>(null)
 
-  useEffect(() => {
-    // Check storage info on component mount
+  // Memoize storage info to prevent repeated checks
+  const storageInfo = useMemo(() => {
     try {
       const info = authHelpers.getStorageInfo()
-      setStorageInfo(info)
-      console.log('Cat Profiles - Storage info:', info)
+      // Only log once during component mount, not on every render
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Cat Profiles - Storage info initialized:', info)
+      }
+      return info
     } catch (error) {
       console.warn('Cat Profiles - Error getting storage info:', error)
-      setStorageInfo({ type: 'memory', available: false })
+      return { type: 'memory', available: false }
     }
-  }, [])
+  }, []) // Empty dependency array - only run once
 
-  useEffect(() => {
-    // Only fetch profiles if we have a user and auth is not loading
-    if (user && !authLoading) {
-      fetchCatProfiles()
-    } else if (!authLoading && !user) {
-      // If not loading and no user, clear loading state
-      setLoading(false)
-    }
-  }, [user, authLoading])
-
-  const fetchCatProfiles = async () => {
+  // Memoize the fetch function to prevent recreation on every render
+  const fetchCatProfiles = useCallback(async () => {
     if (!user) {
       setLoading(false)
       return
@@ -111,7 +104,7 @@ export default function CatProfilesPage() {
 
       // Test storage access before making database calls
       const hasStorageAccess = authHelpers.testStorageAccess()
-      if (!hasStorageAccess) {
+      if (!hasStorageAccess && process.env.NODE_ENV === 'development') {
         console.warn('Cat Profiles - Limited storage access detected')
       }
 
@@ -155,9 +148,21 @@ export default function CatProfilesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user]) // Only depend on user, not on other state variables
 
-  const handleDeleteProfile = async (profileId: string) => {
+  // Single useEffect for fetching profiles when user changes
+  useEffect(() => {
+    // Only fetch profiles if we have a user and auth is not loading
+    if (user && !authLoading) {
+      fetchCatProfiles()
+    } else if (!authLoading && !user) {
+      // If not loading and no user, clear loading state
+      setLoading(false)
+    }
+  }, [user, authLoading, fetchCatProfiles])
+
+  // Memoize the delete handler to prevent recreation
+  const handleDeleteProfile = useCallback(async (profileId: string) => {
     if (isDemoMode) {
       alert('Demo mode - deletion not available')
       return
@@ -199,18 +204,29 @@ export default function CatProfilesPage() {
         alert('Failed to delete cat profile. Please try again.')
       }
     }
-  }
+  }, [user])
 
-  const handleProfileCreated = () => {
+  // Memoize event handlers to prevent recreation
+  const handleProfileCreated = useCallback(() => {
     setShowCreateModal(false)
     fetchCatProfiles()
-  }
+  }, [fetchCatProfiles])
 
-  const handleProfileUpdated = () => {
+  const handleProfileUpdated = useCallback(() => {
     setShowDetailModal(false)
     setSelectedProfile(null)
     fetchCatProfiles()
-  }
+  }, [fetchCatProfiles])
+
+  const handleProfileSelect = useCallback((profile: CatProfile) => {
+    setSelectedProfile(profile)
+    setShowDetailModal(true)
+  }, [])
+
+  const handleCloseDetailModal = useCallback(() => {
+    setShowDetailModal(false)
+    setSelectedProfile(null)
+  }, [])
 
   // Show loading state while auth is loading
   if (authLoading || loading) {
@@ -321,10 +337,7 @@ export default function CatProfilesPage() {
                   {/* Action buttons */}
                   <div className="absolute top-2 right-2 flex space-x-2">
                     <button
-                      onClick={() => {
-                        setSelectedProfile(profile)
-                        setShowDetailModal(true)
-                      }}
+                      onClick={() => handleProfileSelect(profile)}
                       className="p-2 bg-black bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-colors"
                     >
                       <Edit3 className="w-4 h-4" />
@@ -376,10 +389,7 @@ export default function CatProfilesPage() {
 
                   {/* View Profile Button */}
                   <button
-                    onClick={() => {
-                      setSelectedProfile(profile)
-                      setShowDetailModal(true)
-                    }}
+                    onClick={() => handleProfileSelect(profile)}
                     className="w-full mt-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors font-medium"
                   >
                     View Profile
@@ -420,10 +430,7 @@ export default function CatProfilesPage() {
         {showDetailModal && selectedProfile && (
           <CatProfileDetailModal
             profile={selectedProfile}
-            onClose={() => {
-              setShowDetailModal(false)
-              setSelectedProfile(null)
-            }}
+            onClose={handleCloseDetailModal}
             onSuccess={handleProfileUpdated}
           />
         )}
