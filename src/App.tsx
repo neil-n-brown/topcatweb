@@ -9,6 +9,8 @@ import LeaderboardPage from './pages/LeaderboardPage'
 import UploadPage from './pages/UploadPage'
 import ProfilePage from './pages/ProfilePage'
 import CatProfilesPage from './pages/CatProfilesPage'
+import CatProfileDetailPage from './pages/CatProfileDetailPage'
+import UserProfilePage from './pages/UserProfilePage'
 import ErrorBoundary from './components/ErrorBoundary'
 import StorageErrorBoundary from './components/StorageErrorBoundary'
 import StorageWarning from './components/StorageWarning'
@@ -159,6 +161,24 @@ function App() {
                 <Layout>
                   <ProtectedRoute>
                     <CatProfilesPage />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+
+              {/* Individual cat profile page */}
+              <Route path="/cat-profile/:id" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <CatProfileDetailPage />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+
+              {/* User profile page */}
+              <Route path="/user/:id" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <UserProfilePage />
                   </ProtectedRoute>
                 </Layout>
               } />

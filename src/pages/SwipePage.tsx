@@ -6,25 +6,46 @@ import EmojiPicker from '../components/EmojiPicker'
 import { supabase, Cat } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
+// Enhanced Cat interface with caption and profile info
+interface EnhancedCat extends Cat {
+  caption?: string
+  cat_profile?: {
+    id: string
+    name: string
+    profile_picture?: string
+  }
+}
+
 // Demo cats for when Supabase is not configured
-const demoCats: Cat[] = [
+const demoCats: EnhancedCat[] = [
   {
     id: '1',
     user_id: 'demo',
     name: 'Whiskers',
     description: 'A fluffy orange tabby who loves to play',
+    caption: 'Playing in the sunny garden 🌞',
     image_url: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'demo_user', created_at: new Date().toISOString() }
+    user: { id: 'demo', email: 'demo@example.com', username: 'demo_user', created_at: new Date().toISOString() },
+    cat_profile: {
+      id: '1',
+      name: 'Whiskers',
+      profile_picture: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=100'
+    }
   },
   {
     id: '2',
     user_id: 'demo',
     name: 'Luna',
     description: 'A beautiful black cat with green eyes',
+    caption: 'Nap time in my favorite spot',
     image_url: 'https://images.pexels.com/photos/416160/pexels-photo-416160.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'cat_lover', created_at: new Date().toISOString() }
+    user: { id: 'demo', email: 'demo@example.com', username: 'cat_lover', created_at: new Date().toISOString() },
+    cat_profile: {
+      id: '2',
+      name: 'Luna'
+    }
   },
   {
     id: '3',
@@ -33,13 +54,17 @@ const demoCats: Cat[] = [
     description: 'Loves to sleep in sunny spots',
     image_url: 'https://images.pexels.com/photos/1170986/pexels-photo-1170986.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'kitty_fan', created_at: new Date().toISOString() }
+    user: { id: 'demo', email: 'demo@example.com', username: 'kitty_fan', created_at: new Date().toISOString() },
+    cat_profile: {
+      id: '3',
+      name: 'Mittens'
+    }
   }
 ]
 
 export default function SwipePage() {
   const { user } = useAuth()
-  const [cats, setCats] = useState<Cat[]>([])
+  const [cats, setCats] = useState<EnhancedCat[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -51,11 +76,13 @@ export default function SwipePage() {
 
   const fetchCats = async () => {
     try {
+      // Enhanced query to include caption and cat profile information
       const { data, error } = await supabase
         .from('cats')
         .select(`
           *,
-          user:users(*)
+          user:users(*),
+          cat_profile:cat_profiles(id, name, profile_picture)
         `)
         .neq('user_id', user?.id)
         .order('upload_date', { ascending: false })

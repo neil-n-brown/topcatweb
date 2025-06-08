@@ -1,10 +1,32 @@
 import React, { useState } from 'react'
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion'
 import { Heart, X, Flag } from 'lucide-react'
-import { Cat } from '../lib/supabase'
+
+// Enhanced Cat interface with caption and profile info
+interface EnhancedCat {
+  id: string
+  user_id: string
+  name: string
+  description?: string
+  caption?: string
+  image_url: string
+  upload_date: string
+  cat_profile_id?: string
+  user?: {
+    id: string
+    email: string
+    username: string
+    created_at: string
+  }
+  cat_profile?: {
+    id: string
+    name: string
+    profile_picture?: string
+  }
+}
 
 interface SwipeCardProps {
-  cat: Cat
+  cat: EnhancedCat
   onSwipe: (direction: 'left' | 'right') => void
   onReport: () => void
 }
@@ -27,6 +49,10 @@ export default function SwipeCard({ cat, onSwipe, onReport }: SwipeCardProps) {
     }
   }
 
+  // Use cat profile name if available, otherwise fall back to cat name
+  const displayName = cat.cat_profile?.name || cat.name
+  const ownerUsername = cat.user?.username || 'Unknown'
+
   return (
     <motion.div
       className="absolute inset-0 cursor-grab active:cursor-grabbing"
@@ -42,7 +68,7 @@ export default function SwipeCard({ cat, onSwipe, onReport }: SwipeCardProps) {
         <div className="relative h-3/4">
           <img
             src={cat.image_url}
-            alt={cat.name}
+            alt={displayName}
             className="w-full h-full object-cover"
             draggable={false}
           />
@@ -69,13 +95,24 @@ export default function SwipeCard({ cat, onSwipe, onReport }: SwipeCardProps) {
           >
             <Flag className="w-4 h-4" />
           </button>
+
+          {/* Caption overlay - only show if caption exists */}
+          {cat.caption && (
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+              <p className="text-white text-sm font-medium leading-relaxed">
+                {cat.caption}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Info */}
         <div className="p-6 h-1/4 flex flex-col justify-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">{cat.name}</h3>
-          <p className="text-gray-600 mb-2">by @{cat.user?.username}</p>
-          {cat.description && (
+          <h3 className="text-2xl font-bold text-gray-900 mb-1">{displayName}</h3>
+          <p className="text-gray-600 mb-2">by @{ownerUsername}</p>
+          
+          {/* Show description only if no caption exists (backward compatibility) */}
+          {!cat.caption && cat.description && (
             <p className="text-gray-700 text-sm line-clamp-2">{cat.description}</p>
           )}
         </div>
