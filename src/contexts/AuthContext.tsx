@@ -81,25 +81,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Session refresh interval
-  useEffect(() => {
-    if (isDemoMode) return
-
-    const interval = setInterval(async () => {
-      try {
-        const session = await authHelpers.validateSession(supabase)
-        if (!session && user) {
-          console.log('Session expired, signing out user')
-          await handleSignOut(false) // Don't call supabase.auth.signOut() as session is already invalid
-        }
-      } catch (error) {
-        console.error('Session validation error:', error)
-      }
-    }, 5 * 60 * 1000) // Check every 5 minutes
-
-    return () => clearInterval(interval)
-  }, [user])
-
   useEffect(() => {
     let mounted = true
 

@@ -141,30 +141,6 @@ class SafeStorage {
     }
   }
 
-  // Health check for session validity
-  performHealthCheck(): boolean {
-    try {
-      if (!this.isLocalStorageAvailable) return false
-      
-      let hasValidSession = false
-      
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const key = window.localStorage.key(i)
-        if (key && key.includes('supabase') && key.includes('auth')) {
-          const data = window.localStorage.getItem(key)
-          if (data && this.validateSessionData(data)) {
-            hasValidSession = true
-            break
-          }
-        }
-      }
-      
-      return hasValidSession
-    } catch {
-      return false
-    }
-  }
-
   get isAvailable(): boolean {
     return this.isLocalStorageAvailable
   }
@@ -317,17 +293,6 @@ if (isDemoMode) {
     
     console.log('Supabase client created successfully with enhanced storage')
     
-    // Perform initial session health check
-    setTimeout(() => {
-      const hasValidSession = safeStorage.performHealthCheck()
-      console.log('Session health check:', hasValidSession ? 'PASS' : 'FAIL')
-      
-      if (!hasValidSession) {
-        console.log('No valid session found, cleaning up storage')
-        safeStorage.cleanupCorruptedSessions()
-      }
-    }, 1000)
-    
   } catch (error) {
     console.error('Error creating Supabase client:', error)
     throw error
@@ -338,8 +303,7 @@ if (isDemoMode) {
 export const authHelpers = {
   validateSession,
   retryAuthOperation,
-  cleanupCorruptedSessions: () => safeStorage.cleanupCorruptedSessions(),
-  performHealthCheck: () => safeStorage.performHealthCheck()
+  cleanupCorruptedSessions: () => safeStorage.cleanupCorruptedSessions()
 }
 
 export { supabase, isDemoMode, safeStorage }
