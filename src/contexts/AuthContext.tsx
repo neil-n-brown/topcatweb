@@ -26,7 +26,7 @@ export const useAuth = () => {
   return context
 }
 
-// Error boundary component for auth-related errors
+// Simplified error boundary component for auth-related errors
 class AuthErrorBoundary extends React.Component<
   { children: React.ReactNode; onError: (error: Error) => void },
   { hasError: boolean }
@@ -43,9 +43,6 @@ class AuthErrorBoundary extends React.Component<
   componentDidCatch(error: Error, errorInfo: any) {
     console.error('Auth error boundary caught error:', error, errorInfo)
     this.props.onError(error)
-    
-    // Clean up corrupted sessions when auth errors occur
-    authHelpers.cleanupCorruptedSessions()
   }
 
   render() {
@@ -100,19 +97,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Initialize auth with improved error handling
+    // Initialize auth with simplified error handling
     const initializeAuth = async () => {
       try {
         console.log('Initializing Supabase auth...')
         
-        // Clean up any corrupted sessions first
-        authHelpers.cleanupCorruptedSessions()
+        const { data: { session }, error } = await supabase.auth.getSession()
         
-        const session = await authHelpers.retryAuthOperation(async () => {
-          const { data: { session }, error } = await supabase.auth.getSession()
-          if (error) throw error
-          return session
-        })
+        if (error) {
+          console.error('Error getting session:', error)
+          // Don't throw error, just log it and continue
+        }
         
         console.log('Session retrieved:', !!session)
 
@@ -130,9 +125,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Error initializing auth:', error)
         setError('Failed to initialize authentication. Please refresh the page.')
         
-        // Clean up corrupted data
-        authHelpers.cleanupCorruptedSessions()
-        
         if (mounted) {
           setLoading(false)
         }
@@ -141,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth()
 
-    // Listen for auth changes with better error handling
+    // Listen for auth changes with simplified error handling
     let subscription: any
     try {
       const { data } = supabase.auth.onAuthStateChange(
@@ -190,13 +182,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Fetching user profile for:', userId)
       
-      const { data, error } = await authHelpers.retryAuthOperation(async () => {
-        return await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
-          .single()
-      })
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single()
 
       if (error) {
         console.error('Error fetching user profile:', error)
@@ -225,11 +215,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null)
     console.log('Attempting to sign up user...')
     
-    const { data, error } = await authHelpers.retryAuthOperation(async () => {
-      return await supabase.auth.signUp({
-        email,
-        password,
-      })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
     })
 
     if (error) {
@@ -242,17 +230,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (data.user) {
       // Create user profile
-      const { error: profileError } = await authHelpers.retryAuthOperation(async () => {
-        return await supabase
-          .from('users')
-          .insert([
-            {
-              id: data.user.id,
-              email: data.user.email!,
-              username,
-            },
-          ])
-      })
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id: data.user.id,
+            email: data.user.email!,
+            username,
+          },
+        ])
 
       if (profileError) {
         console.error('Profile creation error:', profileError)
@@ -272,11 +258,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null)
     console.log('Attempting to sign in user...')
 
-    const { error } = await authHelpers.retryAuthOperation(async () => {
-      return await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     })
 
     if (error) {
@@ -308,9 +292,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSupabaseUser(null)
     setError(null)
     
-    // Clean up any corrupted session data
-    authHelpers.cleanupCorruptedSessions()
-    
     console.log('Sign out completed')
   }
 
@@ -326,9 +307,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null)
     console.log('Sending password reset email...')
     
-    const { error } = await authHelpers.retryAuthOperation(async () => {
-      return await supabase.auth.resetPasswordForEmail(email)
-    })
+    const { error } = await supabase.auth.resetPasswordForEmail(email)
     
     if (error) {
       console.error('Password reset error:', error)

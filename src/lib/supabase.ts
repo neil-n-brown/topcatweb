@@ -17,7 +17,7 @@ class MemoryStorage {
   }
 }
 
-// Enhanced safe storage with validation and cleanup
+// Simplified safe storage without aggressive validation
 class SafeStorage {
   private storage: Storage | MemoryStorage
   private isLocalStorageAvailable: boolean
@@ -38,32 +38,9 @@ class SafeStorage {
     }
   }
 
-  // Validate session data before returning
-  private validateSessionData(data: string): boolean {
-    try {
-      const parsed = JSON.parse(data)
-      // Check if it has required session structure
-      return parsed && typeof parsed === 'object' && 
-             (parsed.access_token || parsed.refresh_token || parsed.user)
-    } catch {
-      return false
-    }
-  }
-
   getItem(key: string): string | null {
     try {
-      const data = this.storage.getItem(key)
-      
-      // If it's a session-related key, validate the data
-      if (data && key.includes('supabase') && key.includes('auth')) {
-        if (!this.validateSessionData(data)) {
-          console.warn('Invalid session data detected, cleaning up:', key)
-          this.removeItem(key)
-          return null
-        }
-      }
-      
-      return data
+      return this.storage.getItem(key)
     } catch (error) {
       console.error('Error reading from storage:', error)
       return null
@@ -75,8 +52,6 @@ class SafeStorage {
       this.storage.setItem(key, value)
     } catch (error) {
       console.error('Error writing to storage:', error)
-      // If storage is full, try to clean up old session data
-      this.cleanupOldSessions()
     }
   }
 
@@ -88,7 +63,7 @@ class SafeStorage {
     }
   }
 
-  // Clean up corrupted or old session data
+  // Much more conservative cleanup - only remove obviously corrupted data
   cleanupCorruptedSessions(): void {
     if (!this.isLocalStorageAvailable) return
 
@@ -99,45 +74,29 @@ class SafeStorage {
         const key = window.localStorage.key(i)
         if (key && key.includes('supabase') && key.includes('auth')) {
           const data = window.localStorage.getItem(key)
-          if (data && !this.validateSessionData(data)) {
+          // Only remove if data is clearly corrupted (null, empty, or not JSON)
+          if (!data || data.trim() === '' || data === 'null' || data === 'undefined') {
             keysToRemove.push(key)
+          } else {
+            try {
+              JSON.parse(data)
+              // If it parses as JSON, leave it alone - don't validate structure
+            } catch {
+              // Only remove if it's not valid JSON at all
+              keysToRemove.push(key)
+            }
           }
         }
       }
       
-      keysToRemove.forEach(key => {
-        console.log('Removing corrupted session data:', key)
-        window.localStorage.removeItem(key)
-      })
-      
       if (keysToRemove.length > 0) {
-        console.log(`Cleaned up ${keysToRemove.length} corrupted session entries`)
+        console.log(`Cleaning up ${keysToRemove.length} clearly corrupted session entries`)
+        keysToRemove.forEach(key => {
+          window.localStorage.removeItem(key)
+        })
       }
     } catch (error) {
       console.error('Error during session cleanup:', error)
-    }
-  }
-
-  // Clean up old sessions to free space
-  private cleanupOldSessions(): void {
-    if (!this.isLocalStorageAvailable) return
-
-    try {
-      const keysToRemove: string[] = []
-      
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const key = window.localStorage.key(i)
-        if (key && key.includes('supabase') && key.includes('auth')) {
-          keysToRemove.push(key)
-        }
-      }
-      
-      // Remove oldest sessions first
-      keysToRemove.slice(0, Math.floor(keysToRemove.length / 2)).forEach(key => {
-        window.localStorage.removeItem(key)
-      })
-    } catch (error) {
-      console.error('Error during old session cleanup:', error)
     }
   }
 
@@ -174,28 +133,25 @@ const isDemoMode = !supabaseUrl ||
 
 let supabase: any
 
-// Session validation helper
+// Simple session validation - only check if session exists, don't validate structure
 const validateSession = async (client: any) => {
   try {
     const { data: { session }, error } = await client.auth.getSession()
     
     if (error) {
       console.error('Session validation error:', error)
-      // Clean up corrupted session data
-      safeStorage.cleanupCorruptedSessions()
       return null
     }
     
     return session
   } catch (error) {
     console.error('Session validation failed:', error)
-    safeStorage.cleanupCorruptedSessions()
     return null
   }
 }
 
-// Retry helper for auth operations
-const retryAuthOperation = async (operation: () => Promise<any>, maxRetries = 3): Promise<any> => {
+// Simplified retry helper - less aggressive
+const retryAuthOperation = async (operation: () => Promise<any>, maxRetries = 2): Promise<any> => {
   let lastError: any
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -206,14 +162,9 @@ const retryAuthOperation = async (operation: () => Promise<any>, maxRetries = 3)
       lastError = error
       console.warn(`Auth operation attempt ${attempt} failed:`, error)
       
-      // If it's a session error, clean up and retry
-      if (error.message?.includes('session') || error.message?.includes('token')) {
-        safeStorage.cleanupCorruptedSessions()
-      }
-      
-      // Wait before retrying (exponential backoff)
+      // Wait before retrying (shorter wait)
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+        await new Promise(resolve => setTimeout(resolve, 1000))
       }
     }
   }
@@ -277,9 +228,6 @@ if (isDemoMode) {
 } else {
   console.log('Supabase configured successfully')
   
-  // Clean up any corrupted sessions before creating client
-  safeStorage.cleanupCorruptedSessions()
-  
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -291,7 +239,7 @@ if (isDemoMode) {
       }
     })
     
-    console.log('Supabase client created successfully with enhanced storage')
+    console.log('Supabase client created successfully')
     
   } catch (error) {
     console.error('Error creating Supabase client:', error)
@@ -299,7 +247,7 @@ if (isDemoMode) {
   }
 }
 
-// Enhanced auth helpers
+// Simplified auth helpers
 export const authHelpers = {
   validateSession,
   retryAuthOperation,
