@@ -17,19 +17,58 @@ class MemoryStorage {
   }
 }
 
-// Check if localStorage is available
-function isStorageAvailable(): boolean {
-  try {
-    const test = '__storage_test__'
-    localStorage.setItem(test, test)
-    localStorage.removeItem(test)
-    return true
-  } catch {
-    return false
+// Safe storage access with fallback
+class SafeStorage {
+  private storage: Storage | MemoryStorage
+  private isLocalStorageAvailable: boolean
+
+  constructor() {
+    this.isLocalStorageAvailable = this.checkLocalStorageAvailability()
+    this.storage = this.isLocalStorageAvailable ? window.localStorage : new MemoryStorage()
+  }
+
+  private checkLocalStorageAvailability(): boolean {
+    try {
+      const test = '__storage_test__'
+      window.localStorage.setItem(test, test)
+      window.localStorage.removeItem(test)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  getItem(key: string): string | null {
+    try {
+      return this.storage.getItem(key)
+    } catch {
+      return null
+    }
+  }
+
+  setItem(key: string, value: string): void {
+    try {
+      this.storage.setItem(key, value)
+    } catch {
+      // Silently fail if storage is not available
+    }
+  }
+
+  removeItem(key: string): void {
+    try {
+      this.storage.removeItem(key)
+    } catch {
+      // Silently fail if storage is not available
+    }
+  }
+
+  get isAvailable(): boolean {
+    return this.isLocalStorageAvailable
   }
 }
 
-const storage = isStorageAvailable() ? localStorage : new MemoryStorage()
+// Create safe storage instance
+const safeStorage = new SafeStorage()
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -40,7 +79,8 @@ console.log('Environment check:', {
   hasKey: !!supabaseAnonKey,
   url: supabaseUrl ? `${supabaseUrl.substring(0, 50)}...` : 'undefined',
   key: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 50)}...` : 'undefined',
-  nodeEnv: import.meta.env.MODE
+  nodeEnv: import.meta.env.MODE,
+  storageAvailable: safeStorage.isAvailable
 })
 
 // Check if environment variables are properly configured
@@ -112,21 +152,21 @@ if (isDemoMode) {
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        storage: storage,
+        storage: safeStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
         flowType: 'pkce'
       }
     })
-    console.log('Supabase client created successfully')
+    console.log('Supabase client created successfully with safe storage')
   } catch (error) {
     console.error('Error creating Supabase client:', error)
     throw error
   }
 }
 
-export { supabase, isDemoMode }
+export { supabase, isDemoMode, safeStorage }
 
 // Database types
 export interface User {

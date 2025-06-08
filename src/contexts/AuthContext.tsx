@@ -30,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true
-    let timeoutId: NodeJS.Timeout
 
     // If we're in demo mode, create a demo user and skip auth initialization
     if (isDemoMode) {
@@ -53,20 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('Initializing Supabase auth...')
         
-        // Set a more reasonable timeout and handle it properly
-        timeoutId = setTimeout(() => {
-          if (mounted) {
-            console.warn('Auth initialization timeout, continuing without session...')
-            setLoading(false)
-          }
-        }, 3000) // Reduced to 3 seconds for faster feedback
-
         const { data: { session }, error } = await supabase.auth.getSession()
-        
-        // Clear timeout if we get a response
-        if (timeoutId) {
-          clearTimeout(timeoutId)
-        }
         
         if (error) {
           console.error('Error getting session:', error)
@@ -90,9 +76,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Error initializing auth:', error)
-        if (timeoutId) {
-          clearTimeout(timeoutId)
-        }
         if (mounted) {
           setLoading(false)
         }
@@ -128,9 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false
-      if (timeoutId) {
-        clearTimeout(timeoutId)
-      }
       if (subscription) {
         subscription.unsubscribe()
       }
