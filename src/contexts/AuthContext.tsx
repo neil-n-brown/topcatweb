@@ -97,20 +97,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Initialize auth with proper refresh token error handling
+    // Test storage access before initializing auth
+    const storageInfo = authHelpers.getStorageInfo()
+    console.log('Storage info:', storageInfo)
+    
+    if (!authHelpers.testStorageAccess()) {
+      console.warn('Storage access limited, authentication may not persist between sessions')
+    }
+
+    // Initialize auth with enhanced error handling
     const initializeAuth = async () => {
       try {
         console.log('Initializing Supabase auth...')
         
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // Wrap session retrieval in try-catch to handle storage errors
+        let session = null
+        let sessionError = null
         
-        if (error) {
-          console.error('Error getting session:', error)
+        try {
+          const { data: sessionData, error } = await supabase.auth.getSession()
+          session = sessionData?.session
+          sessionError = error
+        } catch (storageError: any) {
+          console.warn('Storage error during session retrieval:', storageError)
+          
+          // If it's a storage access error, continue without session
+          if (storageError.message?.includes('storage') || 
+              storageError.message?.includes('Access to storage is not allowed')) {
+            console.log('Continuing without stored session due to storage restrictions')
+            session = null
+            sessionError = null
+          } else {
+            throw storageError
+          }
+        }
+        
+        if (sessionError) {
+          console.error('Error getting session:', sessionError)
           
           // Check if the error is related to invalid refresh token
-          if (error.message?.includes('Refresh Token Not Found') || 
-              error.message?.includes('Invalid Refresh Token') ||
-              error.message?.includes('refresh_token_not_found')) {
+          if (sessionError.message?.includes('Refresh Token Not Found') || 
+              sessionError.message?.includes('Invalid Refresh Token') ||
+              sessionError.message?.includes('refresh_token_not_found')) {
             console.log('Invalid refresh token detected, clearing session...')
             
             // Clear the corrupted session data
@@ -132,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           
           // For other errors, don't throw but continue with initialization
-          console.warn('Session error (continuing):', error.message)
+          console.warn('Session error (continuing):', sessionError.message)
         }
         
         console.log('Session retrieved:', !!session)
@@ -149,6 +177,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error: any) {
         console.error('Error initializing auth:', error)
+        
+        // Handle storage-related errors gracefully
+        if (error.message?.includes('storage') || 
+            error.message?.includes('Access to storage is not allowed')) {
+          console.warn('Storage access blocked, continuing with limited functionality')
+          if (mounted) {
+            setUser(null)
+            setSupabaseUser(null)
+            setError('Storage access is limited. Authentication may not persist between sessions.')
+            setLoading(false)
+          }
+          return
+        }
         
         // Check if this is a refresh token error
         if (error.message?.includes('Refresh Token Not Found') || 
@@ -206,6 +247,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log('Refresh token error during profile fetch, signing out...')
                 await handleSignOut(true)
                 setError('Your session has expired. Please sign in again.')
+              } else if (error.message?.includes('storage')) {
+                console.warn('Storage error during profile fetch, continuing with limited functionality')
+                setError('Storage access is limited. Some features may not work properly.')
               } else {
                 setError('Failed to load user profile')
               }
@@ -219,7 +263,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription = data.subscription
     } catch (error: any) {
       console.error('Error setting up auth listener:', error)
-      setError('Failed to set up authentication listener')
+      if (error.message?.includes('storage')) {
+        setError('Storage access is limited. Authentication may not work properly.')
+      } else {
+        setError('Failed to set up authentication listener')
+      }
       if (mounted) {
         setLoading(false)
       }
@@ -269,8 +317,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
       
-      setUser(null)
-      setError('Failed to load user profile')
+      // Handle storage errors gracefully
+      if (error.message?.includes('storage')) {
+        setUser(null)
+        setError('Storage access is limited. Profile data may not load properly.')
+      } else {
+        setUser(null)
+        setError('Failed to load user profile')
+      }
     } finally {
       setLoading(false)
     }
@@ -403,6 +457,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('Invalid refresh token during manual refresh, signing out...')
           await handleSignOut(true)
           setError('Your session has expired. Please sign in again.')
+        } else if (error.message?.includes('storage')) {
+          console.warn('Storage error during session refresh')
+          setError('Storage access is limited. Session refresh may not work properly.')
         } else {
           setError('Session expired. Please sign in again.')
           await handleSignOut(false)
@@ -432,6 +489,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error.message?.includes('Refresh Token Not Found')) {
         await handleSignOut(true)
         setError('Your session has expired. Please sign in again.')
+      } else if (error.message?.includes('storage')) {
+        setError('Storage access is limited. Session refresh may not work properly.')
       } else {
         setError('Failed to refresh session')
         await handleSignOut(false)
