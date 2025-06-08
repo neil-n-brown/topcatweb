@@ -70,6 +70,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // CRITICAL FIX: Redirect authenticated users to the main app
   if (user) {
     return <Navigate to="/swipe" replace />
   }

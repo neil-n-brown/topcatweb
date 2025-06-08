@@ -251,9 +251,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('Auth state changed:', event, !!session)
           if (!mounted) return
 
-          // Don't process auth changes during initial load to prevent conflicts
-          if (!isInitialized && event !== 'INITIAL_SESSION') {
-            console.log('Skipping auth state change during initialization')
+          // CRITICAL FIX: Always process auth state changes after initialization starts
+          // Only skip if we're in the very initial setup phase (first 1 second)
+          const isVeryEarlyInit = !isInitialized && Date.now() - startTime < 1000
+          if (isVeryEarlyInit && event !== 'INITIAL_SESSION') {
+            console.log('Skipping auth state change during very early initialization')
             return
           }
 
@@ -302,6 +304,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsInitialized(true)
       }
     }
+
+    // Track start time for early initialization detection
+    const startTime = Date.now()
 
     return () => {
       mounted = false
@@ -413,6 +418,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setError(null)
+    setLoading(true) // CRITICAL FIX: Set loading during sign in
     console.log('Attempting to sign in user...')
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -423,10 +429,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       console.error('Sign in error:', error)
       setError(error.message)
+      setLoading(false) // Reset loading on error
       throw error
     }
     
     console.log('Sign in successful')
+    // Note: Don't set loading to false here - let the auth state change handler do it
   }
 
   const handleSignOut = async (callSupabaseSignOut = true) => {
