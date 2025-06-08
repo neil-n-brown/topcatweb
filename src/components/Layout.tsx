@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Heart, Trophy, User, Upload, LogOut } from 'lucide-react'
+import { Heart, Trophy, User, Upload, LogOut, Star } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 interface LayoutProps {
@@ -15,6 +15,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Swipe', href: '/swipe', icon: Heart },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
     { name: 'Upload', href: '/upload', icon: Upload },
+    { name: 'Cat Profiles', href: '/cat-profiles', icon: Star },
     { name: 'Profile', href: '/profile', icon: User },
   ]
 
@@ -62,7 +63,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Bottom Navigation - Mobile */}
       {user && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden">
-          <div className="grid grid-cols-4 h-16">
+          <div className="grid grid-cols-5 h-16">
             {navigation.map((item) => {
               const Icon = item.icon
               const isActive = location.pathname === item.href

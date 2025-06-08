@@ -8,6 +8,7 @@ import SwipePage from './pages/SwipePage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import UploadPage from './pages/UploadPage'
 import ProfilePage from './pages/ProfilePage'
+import CatProfilesPage from './pages/CatProfilesPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -92,6 +93,14 @@ function App() {
               </ProtectedRoute>
             </Layout>
           } />
+
+          <Route path="/cat-profiles" element={
+            <Layout>
+              <ProtectedRoute>
+                <CatProfilesPage />
+              </ProtectedRoute>
+            </Layout>
+          } />
           
           <Route path="/profile" element={
             <Layout>
@@ -102,7 +111,7 @@ function App() {
           } />
 
           {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/\" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

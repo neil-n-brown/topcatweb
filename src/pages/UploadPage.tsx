@@ -1,7 +1,13 @@
-import React, { useState } from 'react'
-import { Upload, Camera, X } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import React, { useState, useEffect } from 'react'
+import { Upload, Camera, X, Star } from 'lucide-react'
+import { supabase, isDemoMode } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+
+interface CatProfile {
+  id: string
+  name: string
+  profile_picture?: string
+}
 
 export default function UploadPage() {
   const { user } = useAuth()
@@ -11,6 +17,47 @@ export default function UploadPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [success, setSuccess] = useState(false)
+  
+  // Cat profile linking
+  const [catProfiles, setCatProfiles] = useState<CatProfile[]>([])
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('')
+  const [profilesLoading, setProfilesLoading] = useState(true)
+
+  useEffect(() => {
+    if (user) {
+      fetchCatProfiles()
+    }
+  }, [user])
+
+  const fetchCatProfiles = async () => {
+    if (!user) return
+
+    try {
+      if (isDemoMode) {
+        setCatProfiles([
+          { id: '1', name: 'Whiskers', profile_picture: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=100' },
+          { id: '2', name: 'Luna', profile_picture: 'https://images.pexels.com/photos/416160/pexels-photo-416160.jpeg?auto=compress&cs=tinysrgb&w=100' }
+        ])
+        setProfilesLoading(false)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('cat_profiles')
+        .select('id, name, profile_picture')
+        .eq('user_id', user.id)
+        .order('name')
+
+      if (error) throw error
+
+      setCatProfiles(data || [])
+    } catch (error) {
+      console.error('Error fetching cat profiles:', error)
+      setCatProfiles([])
+    } finally {
+      setProfilesLoading(false)
+    }
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -51,6 +98,11 @@ export default function UploadPage() {
       return
     }
 
+    if (isDemoMode) {
+      alert('Demo mode - upload not available. Connect to Supabase to enable uploads!')
+      return
+    }
+
     // Basic profanity filter
     const profanityWords = ['bad', 'inappropriate', 'offensive'] // Add more as needed
     const containsProfanity = profanityWords.some(word => 
@@ -80,17 +132,18 @@ export default function UploadPage() {
         .from('cat-photos')
         .getPublicUrl(fileName)
 
-      // Save cat data to database
+      // Save cat data to database with optional profile linking
+      const catData = {
+        user_id: user.id,
+        name: name.trim(),
+        description: description.trim() || null,
+        image_url: publicUrl,
+        cat_profile_id: selectedProfileId || null // Link to cat profile if selected
+      }
+
       const { error: dbError } = await supabase
         .from('cats')
-        .insert([
-          {
-            user_id: user.id,
-            name: name.trim(),
-            description: description.trim() || null,
-            image_url: publicUrl,
-          },
-        ])
+        .insert([catData])
 
       if (dbError) throw dbError
 
@@ -99,6 +152,7 @@ export default function UploadPage() {
       setDescription('')
       setImage(null)
       setImagePreview(null)
+      setSelectedProfileId('')
 
       // Reset success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000)
@@ -117,6 +171,11 @@ export default function UploadPage() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Your Cat</h1>
           <p className="text-gray-600">Share your adorable cat with the community</p>
+          {isDemoMode && (
+            <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+              <p className="text-yellow-800 text-sm">Demo Mode: Upload functionality requires Supabase configuration</p>
+            </div>
+          )}
         </div>
 
         {/* Success Message */}
@@ -143,14 +202,15 @@ export default function UploadPage() {
                     onChange={handleImageChange}
                     className="hidden"
                     id="image-upload"
+                    disabled={isDemoMode}
                   />
                   <label
                     htmlFor="image-upload"
-                    className="cursor-pointer flex flex-col items-center"
+                    className={`cursor-pointer flex flex-col items-center ${isDemoMode ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <Camera className="w-12 h-12 text-gray-400 mb-4" />
                     <span className="text-lg font-medium text-gray-900 mb-2">
-                      Choose a photo
+                      {isDemoMode ? 'Demo Mode - Upload Disabled' : 'Choose a photo'}
                     </span>
                     <span className="text-sm text-gray-600">
                       PNG, JPG up to 5MB
@@ -175,6 +235,55 @@ export default function UploadPage() {
               )}
             </div>
 
+            {/* Cat Profile Selection */}
+            {!profilesLoading && catProfiles.length > 0 && (
+              <div>
+                <label htmlFor="cat-profile" className="block text-sm font-medium text-gray-700 mb-2">
+                  Link to Cat Profile (Optional)
+                </label>
+                <select
+                  id="cat-profile"
+                  value={selectedProfileId}
+                  onChange={(e) => setSelectedProfileId(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  disabled={isDemoMode}
+                >
+                  <option value="">Select a cat profile (optional)</option>
+                  {catProfiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-gray-500 mt-1">
+                  Link this photo to an existing cat profile to organize your photos
+                </p>
+              </div>
+            )}
+
+            {/* Create Profile Suggestion */}
+            {!profilesLoading && catProfiles.length === 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <Star className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900 mb-1">
+                      Create a Cat Profile
+                    </h4>
+                    <p className="text-sm text-blue-700 mb-2">
+                      Organize your cat photos by creating detailed profiles for each of your cats.
+                    </p>
+                    <a
+                      href="/cat-profiles"
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Create your first cat profile →
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Cat Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -189,6 +298,7 @@ export default function UploadPage() {
                 placeholder="What's your cat's name?"
                 maxLength={50}
                 required
+                disabled={isDemoMode}
               />
             </div>
 
@@ -205,6 +315,7 @@ export default function UploadPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
                 placeholder="Tell us something special about your cat..."
                 maxLength={200}
+                disabled={isDemoMode}
               />
               <p className="text-sm text-gray-500 mt-1">
                 {description.length}/200 characters
@@ -214,7 +325,7 @@ export default function UploadPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={uploading || !image || !name.trim()}
+              disabled={uploading || !image || !name.trim() || isDemoMode}
               className="w-full bg-orange-500 text-white py-3 px-6 rounded-lg font-medium hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
             >
               {uploading ? (
@@ -222,6 +333,8 @@ export default function UploadPage() {
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                   Uploading...
                 </>
+              ) : isDemoMode ? (
+                'Demo Mode - Upload Disabled'
               ) : (
                 <>
                   <Upload className="w-5 h-5 mr-2" />
@@ -240,6 +353,7 @@ export default function UploadPage() {
             <li>• Keep names and descriptions family-friendly</li>
             <li>• Only upload photos you own or have permission to use</li>
             <li>• Photos should be in portrait orientation for best results</li>
+            <li>• Link photos to cat profiles to organize them better</li>
           </ul>
         </div>
       </div>
