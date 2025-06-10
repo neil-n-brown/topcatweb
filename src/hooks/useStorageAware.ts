@@ -28,7 +28,6 @@ export function useStorageAware() {
         error: null
       })
     } catch (error: any) {
-      console.warn('Error checking storage access:', error)
       setStorageState({
         hasAccess: false,
         type: 'memory',
@@ -40,7 +39,6 @@ export function useStorageAware() {
 
   const retryStorageAccess = () => {
     try {
-      authHelpers.cleanupCorruptedSessions()
       const hasAccess = authHelpers.testStorageAccess()
       const storageInfo = authHelpers.getStorageInfo()
       

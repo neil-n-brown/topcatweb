@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Enhanced storage fallback for when localStorage is blocked or restricted
+// Simple memory storage fallback
 class MemoryStorage {
   private storage: { [key: string]: string } = {}
 
@@ -30,58 +30,42 @@ class MemoryStorage {
   }
 }
 
-// Robust safe storage with comprehensive error handling
+// Simplified storage with caching
 class SafeStorage {
   private storage: Storage | MemoryStorage
-  private isLocalStorageAvailable: boolean
-  private hasStorageAccess: boolean = false
+  private isLocalStorageAvailable: boolean | null = null
 
   constructor() {
-    this.isLocalStorageAvailable = this.checkLocalStorageAvailability()
-    this.hasStorageAccess = this.checkStorageAccess()
     this.storage = this.selectBestStorage()
   }
 
   private checkLocalStorageAvailability(): boolean {
+    if (this.isLocalStorageAvailable !== null) {
+      return this.isLocalStorageAvailable
+    }
+
     try {
       if (typeof window === 'undefined' || !window.localStorage) {
+        this.isLocalStorageAvailable = false
         return false
       }
       
       const test = '__storage_test__'
       window.localStorage.setItem(test, test)
       window.localStorage.removeItem(test)
+      this.isLocalStorageAvailable = true
       return true
     } catch (error) {
-      console.warn('localStorage not available:', error)
-      return false
-    }
-  }
-
-  private checkStorageAccess(): boolean {
-    if (!this.isLocalStorageAvailable) return false
-    
-    try {
-      // Test actual read/write operations
-      const testKey = '__access_test__'
-      const testValue = 'test'
-      
-      window.localStorage.setItem(testKey, testValue)
-      const retrieved = window.localStorage.getItem(testKey)
-      window.localStorage.removeItem(testKey)
-      
-      return retrieved === testValue
-    } catch (error) {
-      console.warn('Storage access blocked:', error)
+      this.isLocalStorageAvailable = false
       return false
     }
   }
 
   private selectBestStorage(): Storage | MemoryStorage {
-    if (this.hasStorageAccess) {
+    if (this.checkLocalStorageAvailability()) {
       return window.localStorage
     } else {
-      console.warn('Using memory storage fallback due to storage restrictions')
+      console.warn('Using memory storage fallback')
       return new MemoryStorage()
     }
   }
@@ -91,11 +75,6 @@ class SafeStorage {
       return this.storage.getItem(key)
     } catch (error) {
       console.warn('Error reading from storage:', error)
-      // If storage fails, try to switch to memory storage
-      if (this.storage !== this.memoryFallback) {
-        this.storage = this.memoryFallback
-        return this.storage.getItem(key)
-      }
       return null
     }
   }
@@ -105,15 +84,6 @@ class SafeStorage {
       this.storage.setItem(key, value)
     } catch (error) {
       console.warn('Error writing to storage:', error)
-      // If storage fails, switch to memory storage and try again
-      if (this.storage !== this.memoryFallback) {
-        this.storage = this.memoryFallback
-        try {
-          this.storage.setItem(key, value)
-        } catch (memoryError) {
-          console.error('Failed to write to memory storage:', memoryError)
-        }
-      }
     }
   }
 
@@ -122,77 +92,15 @@ class SafeStorage {
       this.storage.removeItem(key)
     } catch (error) {
       console.warn('Error removing from storage:', error)
-      // If storage fails, try memory storage
-      if (this.storage !== this.memoryFallback) {
-        this.storage = this.memoryFallback
-        try {
-          this.storage.removeItem(key)
-        } catch (memoryError) {
-          console.error('Failed to remove from memory storage:', memoryError)
-        }
-      }
-    }
-  }
-
-  private memoryFallback = new MemoryStorage()
-
-  // Conservative cleanup - only remove obviously corrupted data
-  cleanupCorruptedSessions(): void {
-    if (!this.hasStorageAccess) {
-      console.log('Storage access blocked, skipping cleanup')
-      return
-    }
-
-    try {
-      const keysToRemove: string[] = []
-      
-      // Only check localStorage if we have access
-      if (this.isLocalStorageAvailable && this.hasStorageAccess) {
-        for (let i = 0; i < window.localStorage.length; i++) {
-          const key = window.localStorage.key(i)
-          if (key && key.includes('supabase') && key.includes('auth')) {
-            try {
-              const data = window.localStorage.getItem(key)
-              // Only remove if data is clearly corrupted (null, empty, or not JSON)
-              if (!data || data.trim() === '' || data === 'null' || data === 'undefined') {
-                keysToRemove.push(key)
-              } else {
-                try {
-                  JSON.parse(data)
-                  // If it parses as JSON, leave it alone
-                } catch {
-                  // Only remove if it's not valid JSON at all
-                  keysToRemove.push(key)
-                }
-              }
-            } catch (error) {
-              console.warn('Error checking storage key:', key, error)
-            }
-          }
-        }
-        
-        if (keysToRemove.length > 0) {
-          console.log(`Cleaning up ${keysToRemove.length} clearly corrupted session entries`)
-          keysToRemove.forEach(key => {
-            try {
-              window.localStorage.removeItem(key)
-            } catch (error) {
-              console.warn('Error removing corrupted key:', key, error)
-            }
-          })
-        }
-      }
-    } catch (error) {
-      console.warn('Error during session cleanup:', error)
     }
   }
 
   get isAvailable(): boolean {
-    return this.hasStorageAccess
+    return this.isLocalStorageAvailable ?? false
   }
 
   get storageType(): string {
-    return this.hasStorageAccess ? 'localStorage' : 'memory'
+    return this.isAvailable ? 'localStorage' : 'memory'
   }
 }
 
@@ -201,17 +109,6 @@ const safeStorage = new SafeStorage()
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-// Debug logging to see what environment variables are available
-console.log('Environment check:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseAnonKey,
-  url: supabaseUrl ? `${supabaseUrl.substring(0, 50)}...` : 'undefined',
-  key: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 50)}...` : 'undefined',
-  nodeEnv: import.meta.env.MODE,
-  storageType: safeStorage.storageType,
-  storageAvailable: safeStorage.isAvailable
-})
 
 // Check if environment variables are properly configured
 const isDemoMode = !supabaseUrl || 
@@ -225,47 +122,8 @@ const isDemoMode = !supabaseUrl ||
 
 let supabase: any
 
-// Simple session validation - only check if session exists, don't validate structure
-const validateSession = async (client: any) => {
-  try {
-    const { data: { session }, error } = await client.auth.getSession()
-    
-    if (error) {
-      console.error('Session validation error:', error)
-      return null
-    }
-    
-    return session
-  } catch (error) {
-    console.error('Session validation failed:', error)
-    return null
-  }
-}
-
-// Retry helper for auth operations
-const retryAuthOperation = async (operation: () => Promise<any>, maxRetries = 2): Promise<any> => {
-  let lastError: any
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const result = await operation()
-      return result
-    } catch (error: any) {
-      lastError = error
-      console.warn(`Auth operation attempt ${attempt} failed:`, error)
-      
-      // Wait before retrying
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      }
-    }
-  }
-  
-  throw lastError
-}
-
 if (isDemoMode) {
-  console.warn('Supabase environment variables not found or invalid. Using mock client for preview.')
+  console.warn('Supabase environment variables not found. Using mock client.')
   
   // Create a mock Supabase client for preview purposes
   supabase = {
@@ -318,8 +176,6 @@ if (isDemoMode) {
     }
   }
 } else {
-  console.log('Supabase configured successfully')
-  
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -327,63 +183,21 @@ if (isDemoMode) {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        flowType: 'pkce',
-        // Add additional error handling for storage issues
-        storageKey: 'sb-auth-token',
-        // Reduce token refresh frequency to avoid storage conflicts
-        refreshTokenRotationEnabled: true,
-        // Add debug logging for auth events
-        debug: import.meta.env.DEV
-      },
-      // Add global error handling
-      global: {
-        headers: {
-          'X-Client-Info': 'top-cat-web'
-        }
+        flowType: 'pkce'
       }
     })
-    
-    console.log('Supabase client created successfully with storage type:', safeStorage.storageType)
-    
-    // Add error event listener for storage issues
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', (e) => {
-        if (e.key && e.key.includes('supabase')) {
-          console.log('Storage event detected:', e.key, e.newValue ? 'updated' : 'removed')
-        }
-      })
-      
-      // Handle storage quota exceeded errors
-      window.addEventListener('error', (e) => {
-        if (e.message && e.message.includes('storage')) {
-          console.warn('Storage error detected:', e.message)
-          // Could trigger a storage cleanup here if needed
-        }
-      })
-    }
-    
   } catch (error) {
     console.error('Error creating Supabase client:', error)
     throw error
   }
 }
 
-// Enhanced auth helpers with better error handling
+// Simplified auth helpers
 export const authHelpers = {
-  validateSession,
-  retryAuthOperation,
-  cleanupCorruptedSessions: () => {
-    try {
-      safeStorage.cleanupCorruptedSessions()
-    } catch (error) {
-      console.warn('Error during session cleanup:', error)
-    }
-  },
   getStorageInfo: () => ({
     type: safeStorage.storageType,
     available: safeStorage.isAvailable
   }),
-  // Test storage access
   testStorageAccess: () => {
     try {
       const testKey = '__storage_access_test__'
@@ -395,8 +209,39 @@ export const authHelpers = {
       
       return retrieved === testValue
     } catch (error) {
-      console.warn('Storage access test failed:', error)
       return false
+    }
+  },
+  cleanupCorruptedSessions: () => {
+    // Simplified cleanup - only remove obviously corrupted data
+    try {
+      if (safeStorage.isAvailable && typeof window !== 'undefined') {
+        const keysToRemove: string[] = []
+        
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i)
+          if (key && key.includes('supabase') && key.includes('auth')) {
+            try {
+              const data = window.localStorage.getItem(key)
+              if (!data || data.trim() === '' || data === 'null' || data === 'undefined') {
+                keysToRemove.push(key)
+              }
+            } catch (error) {
+              keysToRemove.push(key)
+            }
+          }
+        }
+        
+        keysToRemove.forEach(key => {
+          try {
+            window.localStorage.removeItem(key)
+          } catch (error) {
+            console.warn('Error removing corrupted key:', key)
+          }
+        })
+      }
+    } catch (error) {
+      console.warn('Error during session cleanup:', error)
     }
   }
 }
