@@ -84,55 +84,28 @@ export default function LeaderboardPage() {
         return
       }
 
-      // Enhanced query to get cat profile information
+      // Use the leaderboard_cats view for top cats (this should work reliably)
       const { data: topData, error: topError } = await supabase
-        .from('cats')
-        .select(`
-          *,
-          user:users(username, email),
-          cat_profile:cat_profiles(id, name),
-          reaction_count:reactions(count)
-        `)
-        .not('cat_profile_id', 'is', null) // Only show cats with profiles
+        .from('leaderboard_cats')
+        .select('*')
         .order('reaction_count', { ascending: false })
         .limit(10)
 
       if (topError) {
-        console.error('Error fetching top cats:', topError)
-        
-        // Fallback to the leaderboard view if the enhanced query fails
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('leaderboard_cats')
-          .select('*')
-          .order('reaction_count', { ascending: false })
-          .limit(10)
-
-        if (fallbackError) {
-          throw fallbackError
-        }
-
-        setTopCats((fallbackData || []).map(cat => ({
-          ...cat,
-          cat_profile_name: cat.name,
-          cat_profile_id_value: cat.id
-        })))
-      } else {
-        // Process the enhanced data
-        const processedTopData = (topData || []).map(cat => ({
-          ...cat,
-          username: cat.user?.username || 'Unknown',
-          email: cat.user?.email,
-          reaction_count: cat.reaction_count?.length || 0,
-          cat_profile_name: cat.cat_profile?.name || cat.name,
-          cat_profile_id_value: cat.cat_profile?.id || cat.cat_profile_id
-        }))
-
-        // Sort by reaction count
-        processedTopData.sort((a, b) => b.reaction_count - a.reaction_count)
-        setTopCats(processedTopData)
+        console.error('Error fetching top cats from view:', topError)
+        throw topError
       }
 
-      // Get trending cats (last 24 hours)
+      // Process the data to match our interface
+      const processedTopData = (topData || []).map(cat => ({
+        ...cat,
+        cat_profile_name: cat.name,
+        cat_profile_id_value: cat.cat_profile_id || cat.id
+      }))
+
+      setTopCats(processedTopData)
+
+      // Use the trending_cats view for trending cats
       const { data: trendingData, error: trendingError } = await supabase
         .from('trending_cats')
         .select('*')
@@ -142,20 +115,17 @@ export default function LeaderboardPage() {
       if (trendingError) {
         console.error('Error fetching trending cats:', trendingError)
         // Use top cats as fallback for trending
-        const fallbackTrending = topData?.slice(0, 5) || []
+        const fallbackTrending = processedTopData.slice(0, 5)
         setTrendingCats(fallbackTrending.map(cat => ({
           ...cat,
-          username: cat.user?.username || 'Unknown',
-          recent_reactions: Math.floor((cat.reaction_count?.length || 0) * 0.3),
-          cat_profile_name: cat.cat_profile?.name || cat.name,
-          cat_profile_id_value: cat.cat_profile?.id || cat.cat_profile_id
+          recent_reactions: Math.floor(cat.reaction_count * 0.3)
         })))
       } else {
         setTrendingCats((trendingData || []).map(cat => ({
           ...cat,
           recent_reactions: cat.recent_reaction_count,
           cat_profile_name: cat.name,
-          cat_profile_id_value: cat.id
+          cat_profile_id_value: cat.cat_profile_id || cat.id
         })))
       }
 
