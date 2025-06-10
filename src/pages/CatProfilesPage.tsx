@@ -74,17 +74,11 @@ export default function CatProfilesPage() {
   // Memoize storage info to prevent repeated checks
   const storageInfo = useMemo(() => {
     try {
-      const info = authHelpers.getStorageInfo()
-      // Only log once during component mount, not on every render
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Cat Profiles - Storage info initialized:', info)
-      }
-      return info
+      return authHelpers.getStorageInfo()
     } catch (error) {
-      console.warn('Cat Profiles - Error getting storage info:', error)
       return { type: 'memory', available: false }
     }
-  }, []) // Empty dependency array - only run once
+  }, [])
 
   // Memoize the fetch function to prevent recreation on every render
   const fetchCatProfiles = useCallback(async () => {
@@ -102,12 +96,6 @@ export default function CatProfilesPage() {
         return
       }
 
-      // Test storage access before making database calls
-      const hasStorageAccess = authHelpers.testStorageAccess()
-      if (!hasStorageAccess && process.env.NODE_ENV === 'development') {
-        console.warn('Cat Profiles - Limited storage access detected')
-      }
-
       // Use the cat_profiles_with_stats view for better performance
       const { data, error: fetchError } = await supabase
         .from('cat_profiles_with_stats')
@@ -117,46 +105,25 @@ export default function CatProfilesPage() {
 
       if (fetchError) {
         console.error('Error fetching cat profiles:', fetchError)
-        
-        // Handle storage-related errors gracefully
-        if (fetchError.message?.includes('storage') || 
-            fetchError.message?.includes('Access to storage is not allowed')) {
-          setError('Storage access is limited. Cat profiles may not load properly.')
-          setCatProfiles(demoCatProfiles) // Fallback to demo data
-        } else {
-          throw fetchError
-        }
+        setError('Failed to load cat profiles')
+        setCatProfiles(demoCatProfiles) // Fallback to demo data
       } else {
         setCatProfiles(data || [])
       }
     } catch (error: any) {
       console.error('Error fetching cat profiles:', error)
-      
-      // Handle different types of errors
-      if (error.message?.includes('storage') || 
-          error.message?.includes('Access to storage is not allowed')) {
-        setError('Storage access is limited. Using demo data.')
-        setCatProfiles(demoCatProfiles)
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        setError('Network error. Please check your connection and try again.')
-        setCatProfiles([])
-      } else {
-        setError('Failed to load cat profiles. Please try again.')
-        // Fallback to demo data on any error
-        setCatProfiles(demoCatProfiles)
-      }
+      setError('Failed to load cat profiles')
+      setCatProfiles(demoCatProfiles)
     } finally {
       setLoading(false)
     }
-  }, [user]) // Only depend on user, not on other state variables
+  }, [user])
 
   // Single useEffect for fetching profiles when user changes
   useEffect(() => {
-    // Only fetch profiles if we have a user and auth is not loading
     if (user && !authLoading) {
       fetchCatProfiles()
     } else if (!authLoading && !user) {
-      // If not loading and no user, clear loading state
       setLoading(false)
     }
   }, [user, authLoading, fetchCatProfiles])
@@ -173,13 +140,6 @@ export default function CatProfilesPage() {
     }
 
     try {
-      // Test storage access before attempting deletion
-      const hasStorageAccess = authHelpers.testStorageAccess()
-      if (!hasStorageAccess) {
-        alert('Storage access is limited. Deletion may not work properly.')
-        return
-      }
-
       const { error } = await supabase
         .from('cat_profiles')
         .delete()
@@ -187,22 +147,13 @@ export default function CatProfilesPage() {
         .eq('user_id', user?.id)
 
       if (error) {
-        if (error.message?.includes('storage')) {
-          alert('Storage access is limited. Unable to delete profile.')
-        } else {
-          throw error
-        }
-        return
+        throw error
       }
 
       setCatProfiles(prev => prev.filter(profile => profile.id !== profileId))
     } catch (error: any) {
       console.error('Error deleting cat profile:', error)
-      if (error.message?.includes('storage')) {
-        alert('Storage access is limited. Unable to delete profile.')
-      } else {
-        alert('Failed to delete cat profile. Please try again.')
-      }
+      alert('Failed to delete cat profile. Please try again.')
     }
   }, [user])
 
@@ -238,11 +189,6 @@ export default function CatProfilesPage() {
             <p className="text-gray-600">
               {authLoading ? 'Authenticating...' : 'Loading cat profiles...'}
             </p>
-            {storageInfo && (
-              <p className="text-sm text-gray-500 mt-2">
-                Storage: {storageInfo.type} ({storageInfo.available ? 'available' : 'limited'})
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -278,28 +224,19 @@ export default function CatProfilesPage() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Cat Profiles</h1>
             <p className="text-gray-600">Create detailed profiles for your cats and track their photos</p>
             
-            {/* Storage and Demo Mode Indicators */}
-            <div className="mt-4 space-y-2">
-              {isDemoMode && (
-                <div className="p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
-                  <p className="text-yellow-800 text-sm">Demo Mode: Showing sample cat profiles</p>
-                </div>
-              )}
-              
-              {error && (
-                <div className="p-3 bg-orange-100 border border-orange-300 rounded-lg">
-                  <p className="text-orange-800 text-sm">{error}</p>
-                </div>
-              )}
-              
-              {storageInfo && !storageInfo.available && (
-                <div className="p-3 bg-blue-100 border border-blue-300 rounded-lg">
-                  <p className="text-blue-800 text-sm">
-                    Storage access is limited ({storageInfo.type}). Some features may not work properly.
-                  </p>
-                </div>
-              )}
-            </div>
+            {/* Demo Mode Indicator */}
+            {isDemoMode && (
+              <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                <p className="text-yellow-800 text-sm">Demo Mode: Showing sample cat profiles</p>
+              </div>
+            )}
+            
+            {/* Error Message */}
+            {error && (
+              <div className="mt-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                <p className="text-orange-800 text-sm">{error}</p>
+              </div>
+            )}
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -345,7 +282,7 @@ export default function CatProfilesPage() {
                     <button
                       onClick={() => handleDeleteProfile(profile.id)}
                       className="p-2 bg-black bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-colors"
-                      disabled={isDemoMode || !storageInfo?.available}
+                      disabled={isDemoMode}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
