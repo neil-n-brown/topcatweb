@@ -177,12 +177,10 @@ export default function LeaderboardPage() {
     showTrending?: boolean 
   }) => (
     <div className="card-cute overflow-hidden hover:scale-[1.02] transition-all duration-300">
-      {/* Mobile-optimized layout */}
       <div className="p-4 sm:p-6">
-        {/* Top row: Rank and Cat Image */}
-        <div className="flex items-center mb-4">
+        <div className="flex items-start space-x-3 sm:space-x-4">
           {/* Rank */}
-          <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center mr-3 sm:mr-4">
+          <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center">
             {rank <= 3 ? (
               <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-lg ${
                 rank === 1 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 
@@ -211,74 +209,69 @@ export default function LeaderboardPage() {
             />
           </div>
 
-          {/* Ranking Badge for top 3 */}
-          {rank <= 3 && (
-            <div className="ml-auto text-xl sm:text-2xl">
-              {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
-            </div>
-          )}
-        </div>
-
-        {/* Cat Information - Full width for better mobile display */}
-        <div className="space-y-2">
-          {/* Cat Profile Name - Full width, larger text */}
-          <div className="w-full">
-            {cat.cat_profile_id_value && !isDemoMode ? (
-              <Link
-                to={`/cat-profile/${cat.cat_profile_id_value}`}
-                className="block text-lg sm:text-xl font-bold text-cute-primary hover:text-pink-600 transition-colors group"
-              >
-                <div className="flex items-center flex-wrap">
-                  <span className="mr-2 text-xl">😻</span>
+          {/* Cat Information */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {/* Cat Name - Clickable to cat profile */}
+            <div>
+              {cat.cat_profile_id_value && !isDemoMode ? (
+                <Link
+                  to={`/cat-profile/${cat.cat_profile_id_value}`}
+                  className="text-lg sm:text-xl font-bold text-cute-primary hover:text-pink-600 transition-colors group inline-flex items-center"
+                >
+                  <span className="mr-2">😻</span>
                   <span className="break-words">{cat.cat_profile_name || cat.name}</span>
-                  <ExternalLink className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" />
+                  <ExternalLink className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" />
+                </Link>
+              ) : (
+                <div className="text-lg sm:text-xl font-bold text-cute-primary inline-flex items-center">
+                  <span className="mr-2">😻</span>
+                  <span className="break-words">{cat.cat_profile_name || cat.name}</span>
                 </div>
-              </Link>
-            ) : (
-              <div className="flex items-center flex-wrap text-lg sm:text-xl font-bold text-cute-primary">
-                <span className="mr-2 text-xl">😻</span>
-                <span className="break-words">{cat.cat_profile_name || cat.name}</span>
-              </div>
-            )}
-          </div>
-          
-          {/* Owner Name - Full width */}
-          <div className="w-full">
-            <div className="flex items-center flex-wrap text-sm sm:text-base text-cute-secondary">
-              <span className="mr-1">by</span>
+              )}
+            </div>
+            
+            {/* Owner Profile - Clickable to user profile */}
+            <div>
               {!isDemoMode ? (
                 <Link
                   to={`/user/${cat.user_id}`}
-                  className="hover:text-pink-600 transition-colors group flex items-center flex-wrap"
+                  className="text-sm sm:text-base text-cute-secondary hover:text-pink-600 transition-colors group inline-flex items-center"
                 >
                   <span className="mr-1">👤</span>
                   <span className="break-words">@{cat.username}</span>
                   <ExternalLink className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" />
                 </Link>
               ) : (
-                <div className="flex items-center flex-wrap">
+                <div className="text-sm sm:text-base text-cute-secondary inline-flex items-center">
                   <span className="mr-1">👤</span>
                   <span className="break-words">@{cat.username}</span>
                 </div>
               )}
             </div>
-          </div>
-          
-          {/* Reactions and Trending Info */}
-          <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
-            <div className="flex items-center space-x-1">
-              <span className="text-lg">💕</span>
-              <span className="text-sm sm:text-base font-bold text-pink-600">
-                {showTrending ? (cat.recent_reactions || 0) : cat.reaction_count} reactions
-              </span>
-            </div>
-            {showTrending && (
-              <div className="flex items-center space-x-1 text-orange-500">
-                <TrendingUp className="w-4 h-4" />
-                <span className="text-xs sm:text-sm font-medium">Trending!</span>
+            
+            {/* Reactions and Trending Info */}
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+              <div className="flex items-center space-x-1">
+                <span className="text-lg">💕</span>
+                <span className="text-sm sm:text-base font-bold text-pink-600">
+                  {showTrending ? (cat.recent_reactions || 0) : cat.reaction_count} reactions
+                </span>
               </div>
-            )}
+              {showTrending && (
+                <div className="flex items-center space-x-1 text-orange-500">
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="text-xs sm:text-sm font-medium">Trending!</span>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Ranking Badge for top 3 */}
+          {rank <= 3 && (
+            <div className="flex-shrink-0 text-xl sm:text-2xl">
+              {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -340,7 +333,7 @@ export default function LeaderboardPage() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setActiveTab('top')}
-              className={`flex items-center justify-center py-3 sm:py-4 px-4 sm:px-6 rounded-2xl font-medium transition-all duration-300 text-sm sm:text-base ${
+              className={`flex items-center justify-center py-3 sm:py-4 px-3 sm:px-6 rounded-2xl font-medium transition-all duration-300 text-sm sm:text-base ${
                 activeTab === 'top'
                   ? 'bg-gradient-to-r from-pink-400 to-purple-400 text-white shadow-lg scale-105'
                   : 'text-cute-secondary hover:text-cute-primary hover:bg-pink-50'
@@ -353,7 +346,7 @@ export default function LeaderboardPage() {
             </button>
             <button
               onClick={() => setActiveTab('trending')}
-              className={`flex items-center justify-center py-3 sm:py-4 px-4 sm:px-6 rounded-2xl font-medium transition-all duration-300 text-sm sm:text-base ${
+              className={`flex items-center justify-center py-3 sm:py-4 px-3 sm:px-6 rounded-2xl font-medium transition-all duration-300 text-sm sm:text-base ${
                 activeTab === 'trending'
                   ? 'bg-gradient-to-r from-pink-400 to-purple-400 text-white shadow-lg scale-105'
                   : 'text-cute-secondary hover:text-cute-primary hover:bg-pink-50'
@@ -444,7 +437,7 @@ export default function LeaderboardPage() {
             </li>
             <li className="flex items-center">
               <span className="mr-2">👆</span>
-              Click on cat profile names to view detailed profiles
+              Click on cat names to view detailed profiles
             </li>
             <li className="flex items-center">
               <span className="mr-2">👤</span>
