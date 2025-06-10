@@ -172,7 +172,7 @@ export default function SwipePage() {
     if (!currentCat || !user) return
 
     if (isDemo) {
-      alert('Demo mode - reporting is not available')
+      alert('Demo mode - reporting is not available 😸')
       return
     }
 
@@ -188,7 +188,7 @@ export default function SwipePage() {
           },
         ])
 
-      alert('Thank you for reporting. We will review this content.')
+      alert('Thank you for reporting! We will review this content. 🐱💕')
       setCurrentIndex(prev => prev + 1)
     } catch (error) {
       console.error('Error reporting cat:', error)
@@ -197,33 +197,40 @@ export default function SwipePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="flex items-center justify-center min-h-screen pb-20 md:pb-0 md:pl-72">
+        <div className="text-center">
+          <div className="text-6xl mb-4 loading-paw">🐾</div>
+          <div className="text-lg text-cute-primary font-medium">Finding adorable cats...</div>
+          <div className="text-sm text-cute-secondary mt-2">Preparing the cuteness! 😻</div>
+        </div>
       </div>
     )
   }
 
   if (cats.length === 0 || currentIndex >= cats.length) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center">
-        <div className="text-6xl mb-4">😿</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">No more cats!</h2>
-        <p className="text-gray-600 mb-6">
-          {isDemo ? 'This is demo mode. Connect to Supabase to see real cats!' : 'Check back later for more adorable cats to rate.'}
-        </p>
-        <button
-          onClick={() => {
-            setCurrentIndex(0)
-            if (isDemo) {
-              setCats([...demoCats])
-            } else {
-              fetchCats()
-            }
-          }}
-          className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-        >
-          {isDemo ? 'Restart Demo' : 'Refresh'}
-        </button>
+      <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center pb-20 md:pb-0 md:pl-72">
+        <div className="card-cute p-8 max-w-md">
+          <div className="text-8xl mb-6 float-animation">😿</div>
+          <h2 className="text-2xl font-bold text-cute-primary mb-4">No more cats!</h2>
+          <p className="text-cute-secondary mb-6 leading-relaxed">
+            {isDemo ? 'This is demo mode. Connect to Supabase to see real cats! 🚀😸' : 'Check back later for more adorable cats to rate. 🐱💕'}
+          </p>
+          <button
+            onClick={() => {
+              setCurrentIndex(0)
+              if (isDemo) {
+                setCats([...demoCats])
+              } else {
+                fetchCats()
+              }
+            }}
+            className="btn-cute hover-bounce flex items-center space-x-2"
+          >
+            <span>{isDemo ? 'Restart Demo' : 'Refresh'}</span>
+            <span className="text-xl">🔄</span>
+          </button>
+        </div>
       </div>
     )
   }
@@ -231,16 +238,30 @@ export default function SwipePage() {
   const currentCat = cats[currentIndex]
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col pb-20 md:pb-0 md:pl-72">
       {/* Demo mode indicator */}
       {isDemo && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 text-center">
-          <p className="font-medium">Demo Mode - Connect to Supabase to use the full app!</p>
+        <div className="alert-cute-warning p-4 text-center border-b border-yellow-300">
+          <p className="font-medium flex items-center justify-center">
+            <span className="text-2xl mr-2">🎮</span>
+            Demo Mode - Connect to Supabase to use the full app!
+            <span className="text-2xl ml-2">😸</span>
+          </p>
         </div>
       )}
 
+      {/* Cute Header */}
+      <div className="text-center py-6 relative z-10">
+        <div className="flex items-center justify-center space-x-2 mb-2">
+          <span className="text-2xl">😻</span>
+          <h1 className="text-2xl font-bold text-cute-primary">Rate This Cutie!</h1>
+          <span className="text-2xl">💕</span>
+        </div>
+        <p className="text-cute-secondary">Swipe or use buttons to rate</p>
+      </div>
+
       {/* Mobile-optimized container */}
-      <div className="flex-1 flex items-center justify-center p-4 pb-20 md:pb-4">
+      <div className="flex-1 flex items-center justify-center p-4 relative z-10">
         <div className="relative w-full max-w-sm h-[600px] md:h-[700px]">
           <AnimatePresence>
             {currentCat && (
@@ -255,14 +276,46 @@ export default function SwipePage() {
         </div>
       </div>
 
-      {/* Emoji reaction button */}
-      <div className="fixed bottom-24 md:bottom-8 right-4">
+      {/* Cute Action Buttons */}
+      <div className="fixed bottom-32 md:bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-4 z-20">
+        {/* Pass Button */}
+        <button
+          onClick={() => handleSwipe('left')}
+          className="w-16 h-16 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-600 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-all duration-300 border-2 border-white"
+          title="Pass"
+        >
+          <span className="text-2xl">😐</span>
+        </button>
+
+        {/* Emoji Reaction Button */}
         <button
           onClick={() => setShowEmojiPicker(true)}
-          className="w-14 h-14 bg-orange-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-orange-600 transition-colors"
+          className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-all duration-300 border-4 border-white hover-bounce"
+          title="React with Emoji"
         >
-          <Smile className="w-6 h-6" />
+          <span className="text-3xl">😸</span>
         </button>
+
+        {/* Love Button */}
+        <button
+          onClick={() => handleSwipe('right')}
+          className="w-16 h-16 bg-gradient-to-r from-pink-400 to-red-400 text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-all duration-300 border-2 border-white"
+          title="Love it!"
+        >
+          <span className="text-2xl">💕</span>
+        </button>
+      </div>
+
+      {/* Progress Indicator */}
+      <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-20 md:left-80 md:transform-none">
+        <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 border border-pink-200">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium text-cute-primary">
+              {currentIndex + 1} of {cats.length}
+            </span>
+            <span className="text-lg">🐱</span>
+          </div>
+        </div>
       </div>
 
       {/* Emoji Picker Modal */}

@@ -20,35 +20,57 @@ export default function EmojiPicker({ onEmojiSelect, onClose }: EmojiPickerProps
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <motion.div
-        className="bg-white rounded-2xl p-6 max-w-sm w-full max-h-96 overflow-y-auto"
+        className="card-cute p-8 max-w-sm w-full max-h-96 overflow-y-auto relative"
         onClick={(e) => e.stopPropagation()}
+        initial={{ y: 50 }}
+        animate={{ y: 0 }}
+        exit={{ y: 50 }}
       >
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-          React with an emoji!
-        </h3>
+        {/* Cute Header */}
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-2">😸</div>
+          <h3 className="text-xl font-bold text-cute-primary mb-2">
+            React with an emoji!
+          </h3>
+          <p className="text-cute-secondary text-sm">
+            Show this kitty some love 💕
+          </p>
+        </div>
         
-        <div className="grid grid-cols-6 gap-3">
+        {/* Emoji Grid */}
+        <div className="grid grid-cols-6 gap-3 mb-6">
           {catEmojis.map((emoji, index) => (
-            <button
+            <motion.button
               key={index}
               onClick={() => onEmojiSelect(emoji)}
-              className="text-2xl p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="text-3xl p-3 rounded-2xl hover:bg-pink-100 transition-all duration-300 transform hover:scale-110 active:scale-95"
+              whileHover={{ rotate: [0, -5, 5, 0] }}
+              whileTap={{ scale: 0.9 }}
             >
               {emoji}
-            </button>
+            </motion.button>
           ))}
         </div>
         
+        {/* Cancel Button */}
         <button
           onClick={onClose}
-          className="w-full mt-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+          className="w-full py-3 text-cute-secondary hover:text-cute-primary transition-colors font-medium rounded-2xl hover:bg-pink-50"
         >
-          Cancel
+          Cancel 🐾
         </button>
+
+        {/* Decorative Elements */}
+        <div className="absolute -top-2 -right-2 text-2xl opacity-60 float-animation">
+          💕
+        </div>
+        <div className="absolute -bottom-2 -left-2 text-xl opacity-40 float-animation" style={{ animationDelay: '1s' }}>
+          🐾
+        </div>
       </motion.div>
     </motion.div>
   )

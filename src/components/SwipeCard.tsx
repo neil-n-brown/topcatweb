@@ -63,7 +63,7 @@ export default function SwipeCard({ cat, onSwipe, onReport }: SwipeCardProps) {
       animate={exitX !== 0 ? { x: exitX } : {}}
       transition={{ duration: 0.2 }}
     >
-      <div className="w-full h-full bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="w-full h-full card-cute overflow-hidden relative">
         {/* Image */}
         <div className="relative h-3/4">
           <img
@@ -73,65 +73,82 @@ export default function SwipeCard({ cat, onSwipe, onReport }: SwipeCardProps) {
             draggable={false}
           />
           
-          {/* Swipe indicators */}
+          {/* Cute Swipe indicators */}
           <motion.div
-            className="absolute top-8 left-8 bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-lg transform -rotate-12"
-            style={{ opacity: useTransform(x, [-150, -50], [1, 0]) }}
+            className="absolute top-8 left-8 px-6 py-3 rounded-2xl font-bold text-lg transform -rotate-12 border-4 border-white shadow-lg"
+            style={{ 
+              opacity: useTransform(x, [-150, -50], [1, 0]),
+              background: 'linear-gradient(135deg, #ff6b6b, #ff8e8e)'
+            }}
           >
-            NOPE
+            <div className="flex items-center space-x-2 text-white">
+              <span className="text-2xl">😐</span>
+              <span>PASS</span>
+            </div>
           </motion.div>
           
           <motion.div
-            className="absolute top-8 right-8 bg-green-500 text-white px-4 py-2 rounded-lg font-bold text-lg transform rotate-12"
-            style={{ opacity: useTransform(x, [50, 150], [1, 0]) }}
+            className="absolute top-8 right-8 px-6 py-3 rounded-2xl font-bold text-lg transform rotate-12 border-4 border-white shadow-lg"
+            style={{ 
+              opacity: useTransform(x, [50, 150], [1, 0]),
+              background: 'linear-gradient(135deg, #ff69b4, #ff1493)'
+            }}
           >
-            CUTE!
+            <div className="flex items-center space-x-2 text-white">
+              <span className="text-2xl">💕</span>
+              <span>LOVE!</span>
+            </div>
           </motion.div>
 
           {/* Report button */}
           <button
             onClick={onReport}
-            className="absolute top-4 right-4 p-2 bg-black bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-colors"
+            className="absolute top-4 right-4 p-3 bg-white/80 backdrop-blur-sm rounded-full text-gray-600 hover:bg-white hover:text-red-500 transition-all duration-300 shadow-lg border border-pink-200"
+            title="Report"
           >
             <Flag className="w-4 h-4" />
           </button>
 
           {/* Caption overlay - only show if caption exists */}
           {cat.caption && (
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-              <p className="text-white text-sm font-medium leading-relaxed">
-                {cat.caption}
-              </p>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-6">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 border border-white/50">
+                <p className="text-gray-800 font-medium leading-relaxed">
+                  {cat.caption}
+                </p>
+              </div>
             </div>
           )}
         </div>
 
         {/* Info */}
-        <div className="p-6 h-1/4 flex flex-col justify-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">{displayName}</h3>
-          <p className="text-gray-600 mb-2">by @{ownerUsername}</p>
+        <div className="p-6 h-1/4 flex flex-col justify-center bg-gradient-to-r from-pink-50 to-purple-50">
+          <div className="flex items-center space-x-3 mb-2">
+            <span className="text-2xl">😻</span>
+            <h3 className="text-2xl font-bold text-cute-primary">{displayName}</h3>
+          </div>
+          
+          <div className="flex items-center space-x-2 mb-3">
+            <span className="text-lg">👤</span>
+            <p className="text-cute-secondary font-medium">by @{ownerUsername}</p>
+          </div>
           
           {/* Show description only if no caption exists (backward compatibility) */}
           {!cat.caption && cat.description && (
-            <p className="text-gray-700 text-sm line-clamp-2">{cat.description}</p>
+            <div className="flex items-start space-x-2">
+              <span className="text-sm mt-1">📝</span>
+              <p className="text-cute-secondary text-sm line-clamp-2 leading-relaxed">{cat.description}</p>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Action buttons */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-4">
-        <button
-          onClick={() => onSwipe('left')}
-          className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors"
-        >
-          <X className="w-6 h-6" />
-        </button>
-        <button
-          onClick={() => onSwipe('right')}
-          className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center text-green-500 hover:bg-green-50 transition-colors"
-        >
-          <Heart className="w-6 h-6" />
-        </button>
+        {/* Cute decorative elements */}
+        <div className="absolute top-4 left-4 text-2xl opacity-60 float-animation">
+          🐾
+        </div>
+        <div className="absolute bottom-4 right-4 text-xl opacity-40 float-animation" style={{ animationDelay: '1s' }}>
+          💕
+        </div>
       </div>
     </motion.div>
   )

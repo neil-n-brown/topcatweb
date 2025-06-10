@@ -1,3 +1,262 @@
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* CSS Custom Properties for Cute Cat Theme */
+:root {
+  --soft-pink: #FFB6C1;
+  --warm-cream: #FFF8DC;
+  --gentle-lavender: #E6E6FA;
+  --soft-mint: #F0FFF0;
+  --coral-pink: #FF7F7F;
+  --golden-yellow: #FFD700;
+  --sky-blue: #87CEEB;
+  --charcoal-gray: #36454F;
+  --soft-brown: #8B4513;
+  --cute-shadow: 0 8px 25px rgba(255, 182, 193, 0.3);
+  --gentle-shadow: 0 4px 15px rgba(255, 182, 193, 0.2);
+}
+
+/* Base Styling */
+* {
+  font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, var(--warm-cream) 0%, var(--soft-mint) 50%, var(--gentle-lavender) 100%);
+  background-attachment: fixed;
+  position: relative;
+}
+
+/* Cute Paw Print Background Pattern */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(255, 182, 193, 0.1) 2px, transparent 2px),
+    radial-gradient(circle at 80% 80%, rgba(230, 230, 250, 0.1) 2px, transparent 2px),
+    radial-gradient(circle at 40% 60%, rgba(240, 255, 240, 0.1) 2px, transparent 2px);
+  background-size: 100px 100px, 150px 150px, 120px 120px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Cute Button Styles */
+.btn-cute {
+  @apply px-6 py-3 rounded-full font-medium transition-all duration-300 transform;
+  background: linear-gradient(135deg, var(--coral-pink), var(--soft-pink));
+  color: white;
+  box-shadow: var(--gentle-shadow);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-cute:hover {
+  @apply scale-105;
+  box-shadow: var(--cute-shadow);
+  background: linear-gradient(135deg, var(--soft-pink), var(--coral-pink));
+}
+
+.btn-cute:active {
+  @apply scale-95;
+}
+
+/* Cute Card Styles */
+.card-cute {
+  @apply rounded-3xl border-2 border-white/30 backdrop-blur-sm;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 220, 0.8));
+  box-shadow: var(--cute-shadow);
+  transition: all 0.3s ease;
+}
+
+.card-cute:hover {
+  @apply scale-[1.02];
+  box-shadow: 0 12px 35px rgba(255, 182, 193, 0.4);
+}
+
+/* Cute Input Styles */
+.input-cute {
+  @apply rounded-2xl border-2 border-pink-200 bg-white/80 backdrop-blur-sm px-4 py-3;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 2px 8px rgba(255, 182, 193, 0.1);
+}
+
+.input-cute:focus {
+  @apply border-pink-300 outline-none;
+  box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.3), inset 0 2px 8px rgba(255, 182, 193, 0.1);
+}
+
+/* Cute Loading Animation */
+@keyframes pawBounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  40% {
+    transform: translateY(-10px) rotate(5deg);
+  }
+  60% {
+    transform: translateY(-5px) rotate(-5deg);
+  }
+}
+
+.loading-paw {
+  animation: pawBounce 1.5s infinite;
+}
+
+/* Cute Gradient Backgrounds */
+.bg-cute-gradient {
+  background: linear-gradient(135deg, var(--soft-pink) 0%, var(--gentle-lavender) 50%, var(--soft-mint) 100%);
+}
+
+.bg-cute-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 248, 220, 0.9));
+}
+
+/* Heart-shaped elements */
+.heart-shape {
+  position: relative;
+}
+
+.heart-shape::before {
+  content: '💖';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.heart-shape:hover::before {
+  opacity: 1;
+}
+
+/* Cute Navigation Styles */
+.nav-cute {
+  @apply backdrop-blur-md border-b-2 border-pink-200/50;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 248, 220, 0.9));
+  box-shadow: 0 4px 20px rgba(255, 182, 193, 0.2);
+}
+
+/* Cute Text Styles */
+.text-cute-primary {
+  color: var(--charcoal-gray);
+  font-weight: 600;
+}
+
+.text-cute-secondary {
+  color: var(--soft-brown);
+  font-weight: 500;
+}
+
+/* Floating Animation for Decorative Elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Cute Hover Effects */
+.hover-bounce:hover {
+  animation: pawBounce 0.6s ease-in-out;
+}
+
+/* Cute Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--warm-cream);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--soft-pink), var(--coral-pink));
+  border-radius: 10px;
+  border: 2px solid var(--warm-cream);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--coral-pink), var(--soft-pink));
+}
+
+/* Cute Selection */
+::selection {
+  background: var(--soft-pink);
+  color: white;
+}
+
+/* Cute Focus Outline */
+*:focus {
+  outline: 2px solid var(--coral-pink);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Cute Placeholder Text */
+::placeholder {
+  color: var(--soft-brown);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Responsive Cute Adjustments */
+@media (max-width: 768px) {
+  .card-cute {
+    @apply rounded-2xl;
+  }
+  
+  .btn-cute {
+    @apply px-4 py-2 text-sm;
+  }
+}
+
+/* Cute Success/Error States */
+.alert-cute-success {
+  @apply rounded-2xl border-2 border-green-200 p-4;
+  background: linear-gradient(135deg, rgba(152, 251, 152, 0.2), rgba(240, 255, 240, 0.3));
+  color: #2d5016;
+}
+
+.alert-cute-error {
+  @apply rounded-2xl border-2 border-red-200 p-4;
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.3), rgba(255, 240, 245, 0.4));
+  color: #8b1538;
+}
+
+.alert-cute-warning {
+  @apply rounded-2xl border-2 border-yellow-200 p-4;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 248, 220, 0.3));
+  color: #8b6914;
+}
+
+/* Cute Badge Styles */
+.badge-cute {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  background: linear-gradient(135deg, var(--golden-yellow), #ffd700);
+  color: var(--charcoal-gray);
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+/* Cute Progress Bar */
+.progress-cute {
+  @apply w-full h-3 rounded-full overflow-hidden;
+  background: rgba(255, 182, 193, 0.2);
+}
+
+.progress-cute-fill {
+  @apply h-full rounded-full transition-all duration-500;
+  background: linear-gradient(90deg, var(--coral-pink), var(--soft-pink));
+}

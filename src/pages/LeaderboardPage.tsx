@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Trophy, TrendingUp, Clock, ExternalLink } from 'lucide-react'
+import { Trophy, TrendingUp, Clock, ExternalLink, Crown, Star } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase, isDemoMode } from '../lib/supabase'
 
@@ -176,75 +176,97 @@ export default function LeaderboardPage() {
     rank: number
     showTrending?: boolean 
   }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
-      <div className="flex items-center p-4">
+    <div className="card-cute overflow-hidden hover:scale-[1.02] transition-all duration-300">
+      <div className="flex items-center p-6">
         {/* Rank */}
-        <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center">
+        <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center mr-4">
           {rank <= 3 ? (
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-              rank === 1 ? 'bg-yellow-500' : rank === 2 ? 'bg-gray-400' : 'bg-orange-400'
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg ${
+              rank === 1 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 
+              rank === 2 ? 'bg-gradient-to-r from-gray-300 to-gray-400' : 
+              'bg-gradient-to-r from-orange-400 to-orange-500'
             }`}>
-              {rank}
+              {rank === 1 ? '👑' : rank}
             </div>
           ) : (
-            <span className="text-lg font-semibold text-gray-600">#{rank}</span>
+            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-100 to-purple-100 flex items-center justify-center">
+              <span className="text-lg font-bold text-cute-primary">#{rank}</span>
+            </div>
           )}
         </div>
 
         {/* Cat Image */}
-        <div className="flex-shrink-0 w-16 h-16 ml-4">
+        <div className="flex-shrink-0 w-20 h-20 ml-2 mr-4">
           <img
             src={cat.image_url}
             alt={cat.cat_profile_name || cat.name}
-            className="w-full h-full object-cover rounded-lg"
+            className="w-full h-full object-cover rounded-2xl border-2 border-white shadow-lg"
             onError={(e) => {
               const target = e.target as HTMLImageElement
-              target.src = 'https://via.placeholder.com/64x64/ff6b35/ffffff?text=Cat'
+              target.src = 'https://via.placeholder.com/80x80/ff6b35/ffffff?text=😸'
             }}
           />
         </div>
 
         {/* Cat Info */}
-        <div className="flex-1 ml-4 min-w-0">
-          <div className="flex items-center space-x-2 mb-1">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center space-x-2 mb-2">
             {/* Cat Profile Name - Clickable */}
             {cat.cat_profile_id_value && !isDemoMode ? (
               <Link
                 to={`/cat-profile/${cat.cat_profile_id_value}`}
-                className="text-lg font-semibold text-gray-900 hover:text-orange-600 transition-colors truncate flex items-center"
+                className="text-lg font-bold text-cute-primary hover:text-pink-600 transition-colors truncate flex items-center group"
               >
+                <span className="mr-1">😻</span>
                 {cat.cat_profile_name || cat.name}
-                <ExternalLink className="w-3 h-3 ml-1 opacity-60" />
+                <ExternalLink className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-60 transition-opacity" />
               </Link>
             ) : (
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
+              <h3 className="text-lg font-bold text-cute-primary truncate flex items-center">
+                <span className="mr-1">😻</span>
                 {cat.cat_profile_name || cat.name}
               </h3>
+            )}
+            
+            {rank <= 3 && (
+              <div className="text-xl">
+                {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
+              </div>
             )}
           </div>
           
           {/* Owner Name - Clickable */}
-          <div className="flex items-center space-x-1 mb-2">
-            <span className="text-sm text-gray-500">by</span>
+          <div className="flex items-center space-x-1 mb-3">
+            <span className="text-sm text-cute-secondary">by</span>
             {!isDemoMode ? (
               <Link
                 to={`/user/${cat.user_id}`}
-                className="text-sm text-gray-600 hover:text-orange-600 transition-colors flex items-center"
+                className="text-sm text-cute-secondary hover:text-pink-600 transition-colors flex items-center group"
               >
+                <span className="mr-1">👤</span>
                 @{cat.username}
-                <ExternalLink className="w-3 h-3 ml-1 opacity-60" />
+                <ExternalLink className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-60 transition-opacity" />
               </Link>
             ) : (
-              <span className="text-sm text-gray-600">@{cat.username}</span>
+              <span className="text-sm text-cute-secondary flex items-center">
+                <span className="mr-1">👤</span>
+                @{cat.username}
+              </span>
             )}
           </div>
           
-          <div className="flex items-center">
-            <span className="text-sm font-medium text-orange-600">
-              {showTrending ? (cat.recent_reactions || 0) : cat.reaction_count} reactions
-            </span>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-1">
+              <span className="text-lg">💕</span>
+              <span className="text-sm font-bold text-pink-600">
+                {showTrending ? (cat.recent_reactions || 0) : cat.reaction_count} reactions
+              </span>
+            </div>
             {showTrending && (
-              <TrendingUp className="w-4 h-4 ml-1 text-orange-500" />
+              <div className="flex items-center space-x-1 text-orange-500">
+                <TrendingUp className="w-4 h-4" />
+                <span className="text-xs font-medium">Trending!</span>
+              </div>
             )}
           </div>
         </div>
@@ -254,11 +276,12 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-50 pb-20 md:pb-0 md:pl-64">
+      <div className="min-h-screen bg-cute-gradient pb-20 md:pb-0 md:pl-72">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading leaderboards...</p>
+            <div className="text-6xl mb-4 loading-paw">🏆</div>
+            <div className="text-lg text-cute-primary font-medium">Loading leaderboards...</div>
+            <div className="text-sm text-cute-secondary mt-2">Finding the top cats! 😻</div>
           </div>
         </div>
       </div>
@@ -266,56 +289,70 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-50 pb-20 md:pb-0 md:pl-64">
+    <div className="min-h-screen bg-cute-gradient pb-20 md:pb-0 md:pl-72">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Leaderboard</h1>
-          <p className="text-gray-600">Discover the most beloved cat profiles in our community</p>
+          <div className="text-6xl mb-4 float-animation">🏆</div>
+          <h1 className="text-4xl font-bold text-cute-primary mb-2">Leaderboard</h1>
+          <p className="text-cute-secondary font-medium">Discover the most beloved cat profiles in our community 💕</p>
           {isDemoMode && (
-            <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
-              <p className="text-yellow-800 text-sm">Demo Mode: Showing sample leaderboard data</p>
+            <div className="mt-4 alert-cute-warning">
+              <div className="flex items-center justify-center">
+                <span className="text-2xl mr-2">🎮</span>
+                <p className="font-medium">Demo Mode: Showing sample leaderboard data</p>
+                <span className="text-2xl ml-2">😸</span>
+              </div>
             </div>
           )}
         </div>
 
         {/* Error Message */}
         {error && !isDemoMode && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg">
-            <p className="text-red-800">Error loading leaderboards: {error}</p>
-            <button 
-              onClick={fetchLeaderboards}
-              className="mt-2 text-red-600 hover:text-red-800 underline"
-            >
-              Try again
-            </button>
+          <div className="mb-6 alert-cute-error">
+            <div className="flex items-center">
+              <span className="text-xl mr-2">⚠️</span>
+              <div className="flex-1">
+                <p className="font-medium">Error loading leaderboards: {error}</p>
+                <button 
+                  onClick={fetchLeaderboards}
+                  className="mt-2 text-red-600 hover:text-red-800 underline font-medium"
+                >
+                  Try again 🔄
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex bg-white rounded-lg p-1 mb-8 shadow-sm">
-          <button
-            onClick={() => setActiveTab('top')}
-            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md font-medium transition-colors ${
-              activeTab === 'top'
-                ? 'bg-orange-500 text-white'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Trophy className="w-5 h-5 mr-2" />
-            Top Cat Profiles
-          </button>
-          <button
-            onClick={() => setActiveTab('trending')}
-            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md font-medium transition-colors ${
-              activeTab === 'trending'
-                ? 'bg-orange-500 text-white'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Clock className="w-5 h-5 mr-2" />
-            Trending
-          </button>
+        <div className="card-cute p-2 mb-8">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setActiveTab('top')}
+              className={`flex items-center justify-center py-4 px-6 rounded-2xl font-medium transition-all duration-300 ${
+                activeTab === 'top'
+                  ? 'bg-gradient-to-r from-pink-400 to-purple-400 text-white shadow-lg scale-105'
+                  : 'text-cute-secondary hover:text-cute-primary hover:bg-pink-50'
+              }`}
+            >
+              <Trophy className="w-5 h-5 mr-2" />
+              <span>Top Cat Profiles</span>
+              <span className="text-xl ml-2">👑</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('trending')}
+              className={`flex items-center justify-center py-4 px-6 rounded-2xl font-medium transition-all duration-300 ${
+                activeTab === 'trending'
+                  ? 'bg-gradient-to-r from-pink-400 to-purple-400 text-white shadow-lg scale-105'
+                  : 'text-cute-secondary hover:text-cute-primary hover:bg-pink-50'
+              }`}
+            >
+              <Clock className="w-5 h-5 mr-2" />
+              <span>Trending</span>
+              <span className="text-xl ml-2">🔥</span>
+            </button>
+          </div>
         </div>
 
         {/* Leaderboard Content */}
@@ -330,16 +367,22 @@ export default function LeaderboardPage() {
                 />
               ))
             ) : (
-              <div className="text-center py-12">
-                <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No cat profiles yet!</h3>
-                <p className="text-gray-600 mb-4">Create cat profiles and upload photos to start the competition.</p>
-                <Link
-                  to="/cat-profiles"
-                  className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  Create Cat Profile
-                </Link>
+              <div className="text-center py-16">
+                <div className="card-cute p-8 max-w-md mx-auto">
+                  <div className="text-6xl mb-4">😿</div>
+                  <h3 className="text-xl font-bold text-cute-primary mb-4">No cat profiles yet!</h3>
+                  <p className="text-cute-secondary mb-6 leading-relaxed">
+                    Create cat profiles and upload photos to start the competition. 🏁
+                  </p>
+                  <Link
+                    to="/cat-profiles"
+                    className="btn-cute inline-flex items-center space-x-2"
+                  >
+                    <Star className="w-4 h-4" />
+                    <span>Create Cat Profile</span>
+                    <span className="text-lg">😸</span>
+                  </Link>
+                </div>
               </div>
             )
           ) : (
@@ -353,30 +396,53 @@ export default function LeaderboardPage() {
                 />
               ))
             ) : (
-              <div className="text-center py-12">
-                <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No trending cats!</h3>
-                <p className="text-gray-600 mb-4">Start swiping to see which cat profiles are trending today.</p>
-                <Link
-                  to="/swipe"
-                  className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  Start Swiping
-                </Link>
+              <div className="text-center py-16">
+                <div className="card-cute p-8 max-w-md mx-auto">
+                  <div className="text-6xl mb-4">📈</div>
+                  <h3 className="text-xl font-bold text-cute-primary mb-4">No trending cats!</h3>
+                  <p className="text-cute-secondary mb-6 leading-relaxed">
+                    Start swiping to see which cat profiles are trending today. 🔥
+                  </p>
+                  <Link
+                    to="/swipe"
+                    className="btn-cute inline-flex items-center space-x-2"
+                  >
+                    <span>Start Swiping</span>
+                    <span className="text-lg">😻</span>
+                  </Link>
+                </div>
               </div>
             )
           )}
         </div>
 
         {/* Info Box */}
-        <div className="mt-8 bg-blue-50 rounded-lg p-4">
-          <h3 className="font-medium text-blue-900 mb-2">How Rankings Work</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>• <strong>Top Cat Profiles:</strong> Ranked by total reactions across all photos</li>
-            <li>• <strong>Trending:</strong> Based on reactions received in the last 24 hours</li>
-            <li>• Click on cat profile names to view detailed profiles</li>
-            <li>• Click on owner names to view their profile pages</li>
-            <li>• Only cats with complete profiles are eligible for rankings</li>
+        <div className="mt-8 card-cute p-6 bg-gradient-to-r from-blue-50 to-purple-50">
+          <div className="flex items-center mb-4">
+            <span className="text-2xl mr-3">💡</span>
+            <h3 className="font-bold text-cute-primary">How Rankings Work</h3>
+          </div>
+          <ul className="text-sm text-cute-secondary space-y-2 leading-relaxed">
+            <li className="flex items-center">
+              <span className="mr-2">🏆</span>
+              <strong>Top Cat Profiles:</strong> Ranked by total reactions across all photos
+            </li>
+            <li className="flex items-center">
+              <span className="mr-2">🔥</span>
+              <strong>Trending:</strong> Based on reactions received in the last 24 hours
+            </li>
+            <li className="flex items-center">
+              <span className="mr-2">👆</span>
+              Click on cat profile names to view detailed profiles
+            </li>
+            <li className="flex items-center">
+              <span className="mr-2">👤</span>
+              Click on owner names to view their profile pages
+            </li>
+            <li className="flex items-center">
+              <span className="mr-2">⭐</span>
+              Only cats with complete profiles are eligible for rankings
+            </li>
           </ul>
         </div>
       </div>
