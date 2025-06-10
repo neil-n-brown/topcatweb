@@ -84,50 +84,81 @@ export default function LeaderboardPage() {
         return
       }
 
-      // Use the leaderboard_cats view for top cats (this should work reliably)
+      // Enhanced query to get cats with valid cat profiles only
       const { data: topData, error: topError } = await supabase
-        .from('leaderboard_cats')
-        .select('*')
-        .order('reaction_count', { ascending: false })
-        .limit(10)
+        .from('cats')
+        .select(`
+          id,
+          user_id,
+          name,
+          description,
+          caption,
+          image_url,
+          upload_date,
+          cat_profile_id,
+          user:users!inner(username, email),
+          cat_profile:cat_profiles!inner(id, name)
+        `)
+        .not('cat_profile_id', 'is', null) // Only cats with profiles
+        .order('upload_date', { ascending: false })
+        .limit(50) // Get more to calculate reactions
 
       if (topError) {
-        console.error('Error fetching top cats from view:', topError)
+        console.error('Error fetching cats with profiles:', topError)
         throw topError
       }
 
-      // Process the data to match our interface
-      const processedTopData = (topData || []).map(cat => ({
-        ...cat,
-        cat_profile_name: cat.name,
-        cat_profile_id_value: cat.cat_profile_id || cat.id
-      }))
+      // Get reaction counts for each cat
+      const catsWithReactions = await Promise.all(
+        (topData || []).map(async (cat) => {
+          try {
+            const { count: reactionCount } = await supabase
+              .from('reactions')
+              .select('*', { count: 'exact', head: true })
+              .eq('cat_id', cat.id)
 
-      setTopCats(processedTopData)
+            const { count: recentReactionCount } = await supabase
+              .from('reactions')
+              .select('*', { count: 'exact', head: true })
+              .eq('cat_id', cat.id)
+              .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
 
-      // Use the trending_cats view for trending cats
-      const { data: trendingData, error: trendingError } = await supabase
-        .from('trending_cats')
-        .select('*')
-        .order('recent_reaction_count', { ascending: false })
-        .limit(10)
+            return {
+              ...cat,
+              username: cat.user?.username || 'Unknown',
+              email: cat.user?.email,
+              reaction_count: reactionCount || 0,
+              recent_reactions: recentReactionCount || 0,
+              cat_profile_name: cat.cat_profile?.name || cat.name,
+              cat_profile_id_value: cat.cat_profile?.id || cat.cat_profile_id
+            }
+          } catch (error) {
+            console.warn('Error fetching reactions for cat:', cat.id, error)
+            return {
+              ...cat,
+              username: cat.user?.username || 'Unknown',
+              email: cat.user?.email,
+              reaction_count: 0,
+              recent_reactions: 0,
+              cat_profile_name: cat.cat_profile?.name || cat.name,
+              cat_profile_id_value: cat.cat_profile?.id || cat.cat_profile_id
+            }
+          }
+        })
+      )
 
-      if (trendingError) {
-        console.error('Error fetching trending cats:', trendingError)
-        // Use top cats as fallback for trending
-        const fallbackTrending = processedTopData.slice(0, 5)
-        setTrendingCats(fallbackTrending.map(cat => ({
-          ...cat,
-          recent_reactions: Math.floor(cat.reaction_count * 0.3)
-        })))
-      } else {
-        setTrendingCats((trendingData || []).map(cat => ({
-          ...cat,
-          recent_reactions: cat.recent_reaction_count,
-          cat_profile_name: cat.name,
-          cat_profile_id_value: cat.cat_profile_id || cat.id
-        })))
-      }
+      // Sort by reaction count for top cats
+      const sortedTopCats = catsWithReactions
+        .sort((a, b) => b.reaction_count - a.reaction_count)
+        .slice(0, 10)
+
+      // Sort by recent reactions for trending
+      const sortedTrendingCats = catsWithReactions
+        .sort((a, b) => b.recent_reactions - a.recent_reactions)
+        .slice(0, 10)
+
+      setTopCats(sortedTopCats)
+      setTrendingCats(sortedTrendingCats)
 
     } catch (error: any) {
       console.error('Error fetching leaderboards:', error)

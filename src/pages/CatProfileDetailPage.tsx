@@ -100,20 +100,65 @@ export default function CatProfileDetailPage() {
         return
       }
 
+      // First try the cat_profiles_with_stats view
       const { data, error } = await supabase
         .from('cat_profiles_with_stats')
         .select('*')
         .eq('id', id)
-        .single()
+        .maybeSingle() // Use maybeSingle instead of single to avoid error when no rows
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        console.error('Error fetching from cat_profiles_with_stats:', error)
+        
+        // Fallback to direct cat_profiles query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('cat_profiles')
+          .select(`
+            *,
+            user:users(username)
+          `)
+          .eq('id', id)
+          .maybeSingle()
+
+        if (fallbackError) {
+          throw fallbackError
+        }
+
+        if (!fallbackData) {
+          setError('Cat profile not found')
+          setLoading(false)
+          return
+        }
+
+        // Calculate stats manually for fallback
+        const { count: photoCount } = await supabase
+          .from('cats')
+          .select('*', { count: 'exact', head: true })
+          .eq('cat_profile_id', id)
+
+        const { data: reactionData } = await supabase
+          .from('reactions')
+          .select('id')
+          .in('cat_id', 
+            await supabase
+              .from('cats')
+              .select('id')
+              .eq('cat_profile_id', id)
+              .then(({ data }) => data?.map(cat => cat.id) || [])
+          )
+
+        setProfile({
+          ...fallbackData,
+          username: fallbackData.user?.username,
+          photo_count: photoCount || 0,
+          total_reactions: reactionData?.length || 0
+        })
+      } else {
+        if (!data) {
           setError('Cat profile not found')
         } else {
-          throw error
+          setProfile(data)
         }
-      } else {
-        setProfile(data)
       }
     } catch (error: any) {
       console.error('Error fetching cat profile:', error)
@@ -216,14 +261,23 @@ export default function CatProfileDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-50 pb-20 md:pb-0 md:pl-64">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center p-8 bg-white rounded-lg shadow-md max-w-md">
+            <div className="text-6xl mb-4">😿</div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Profile Not Found</h2>
             <p className="text-gray-600 mb-4">{error || 'This cat profile does not exist.'}</p>
-            <button
-              onClick={() => navigate('/cat-profiles')}
-              className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              Back to Cat Profiles
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => navigate('/cat-profiles')}
+                className="w-full bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                Browse Cat Profiles
+              </button>
+              <button
+                onClick={() => navigate(-1)}
+                className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
           </div>
         </div>
       </div>
