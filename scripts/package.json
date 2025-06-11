@@ -1,0 +1,14 @@
+{
+  "name": "topcat-seeding",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Database seeding scripts for Top Cat app",
+  "scripts": {
+    "seed": "node seed-database.js",
+    "clean-demo": "node clean-demo-data.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "node-fetch": "^3.3.2"
+  }
+}
