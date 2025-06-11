@@ -4,11 +4,13 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
 
-// Load environment variables
-dotenv.config()
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+// Try to load environment variables from multiple locations
+// First try the scripts directory, then the parent directory
+dotenv.config({ path: path.join(__dirname, '.env') })
+dotenv.config({ path: path.join(__dirname, '..', '.env') })
 
 // Supabase configuration
 const supabaseUrl = process.env.VITE_SUPABASE_URL
@@ -16,9 +18,13 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ Missing Supabase configuration.')
-  console.error('Please ensure you have a .env file in the scripts directory with:')
+  console.error('Please ensure you have a .env file with:')
   console.error('VITE_SUPABASE_URL=your_supabase_url')
   console.error('SUPABASE_SERVICE_ROLE_KEY=your_service_role_key')
+  console.error('')
+  console.error('The .env file should be in either:')
+  console.error('- scripts/.env (current directory)')
+  console.error('- .env (project root)')
   console.error('')
   console.error('Note: You need the SERVICE ROLE KEY, not the anon key!')
   process.exit(1)
@@ -27,6 +33,15 @@ if (!supabaseUrl || !supabaseServiceKey) {
 if (supabaseServiceKey === 'your_service_role_key_here') {
   console.error('❌ Please replace "your_service_role_key_here" with your actual Supabase service role key.')
   console.error('You can find this in your Supabase dashboard under Settings > API.')
+  process.exit(1)
+}
+
+// Validate URL format
+try {
+  new URL(supabaseUrl)
+} catch (error) {
+  console.error('❌ Invalid Supabase URL format:', supabaseUrl)
+  console.error('URL should start with https:// and be a valid URL')
   process.exit(1)
 }
 
@@ -215,195 +230,235 @@ function getLocalCatPhotoPath(photoNumber) {
   return path.join(__dirname, '..', 'public', `cute_cat_${paddedNumber}.jpg`)
 }
 
-// Function to upload local image to Supabase Storage
-async function uploadLocalImageToSupabase(localImagePath, fileName, userId) {
-  try {
-    if (!fs.existsSync(localImagePath)) {
-      console.error(`❌ Local image not found: ${localImagePath}`)
+// Function to upload local image to Supabase Storage with retry logic
+async function uploadLocalImageToSupabase(localImagePath, fileName, userId, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (!fs.existsSync(localImagePath)) {
+        console.error(`❌ Local image not found: ${localImagePath}`)
+        return null
+      }
+
+      const fileBuffer = fs.readFileSync(localImagePath)
+      const fileExt = path.extname(fileName)
+      const uniqueFileName = `${userId}-${Date.now()}${fileExt}`
+      
+      const { data, error } = await supabase.storage
+        .from('cat-photos')
+        .upload(uniqueFileName, fileBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false
+        })
+      
+      if (error) {
+        throw error
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('cat-photos')
+        .getPublicUrl(uniqueFileName)
+      
+      console.log(`✅ Uploaded local image to Supabase: ${uniqueFileName}`)
+      return publicUrl
+    } catch (error) {
+      console.error(`❌ Error uploading ${fileName} (attempt ${attempt}/${maxRetries}):`, error.message)
+      
+      if (attempt < maxRetries && (error.message.includes('fetch failed') || error.message.includes('network'))) {
+        console.log(`⏳ Retrying upload in ${attempt * 2} seconds...`)
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+        continue
+      }
+      
       return null
     }
-
-    const fileBuffer = fs.readFileSync(localImagePath)
-    const fileExt = path.extname(fileName)
-    const uniqueFileName = `${userId}-${Date.now()}${fileExt}`
-    
-    const { data, error } = await supabase.storage
-      .from('cat-photos')
-      .upload(uniqueFileName, fileBuffer, {
-        contentType: 'image/jpeg',
-        upsert: false
-      })
-    
-    if (error) {
-      throw error
-    }
-    
-    const { data: { publicUrl } } = supabase.storage
-      .from('cat-photos')
-      .getPublicUrl(uniqueFileName)
-    
-    console.log(`✅ Uploaded local image to Supabase: ${uniqueFileName}`)
-    return publicUrl
-  } catch (error) {
-    console.error(`❌ Error uploading ${fileName} to Supabase:`, error)
-    return null
   }
+  return null
 }
 
-// Function to create user account
-async function createUserAccount(userData) {
-  try {
-    console.log(`Creating user account for ${userData.username}...`)
-    
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: userData.email,
-      password: 'Testing01!',
-      email_confirm: true,
-      user_metadata: {
-        username: userData.username,
-        is_demo_account: true
-      }
-    })
-    
-    if (authError) {
-      throw authError
-    }
-    
-    const userId = authData.user.id
-    
-    // Create user profile
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert([{
-        id: userId,
+// Function to create user account with retry logic
+async function createUserAccount(userData, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Creating user account for ${userData.username}... (attempt ${attempt}/${maxRetries})`)
+      
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: userData.email,
-        username: userData.username,
-        created_at: new Date().toISOString()
-      }])
-    
-    if (profileError) {
-      throw profileError
+        password: 'Testing01!',
+        email_confirm: true,
+        user_metadata: {
+          username: userData.username,
+          is_demo_account: true
+        }
+      })
+      
+      if (authError) {
+        throw authError
+      }
+      
+      const userId = authData.user.id
+      
+      // Create user profile
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert([{
+          id: userId,
+          email: userData.email,
+          username: userData.username,
+          created_at: new Date().toISOString()
+        }])
+      
+      if (profileError) {
+        throw profileError
+      }
+      
+      console.log(`✅ Created user: ${userData.username} (${userId})`)
+      return userId
+    } catch (error) {
+      console.error(`❌ Error creating user ${userData.username} (attempt ${attempt}/${maxRetries}):`, error.message)
+      
+      if (attempt < maxRetries && (error.message.includes('fetch failed') || error.message.includes('network'))) {
+        console.log(`⏳ Retrying user creation in ${attempt * 2} seconds...`)
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+        continue
+      }
+      
+      return null
     }
-    
-    console.log(`✅ Created user: ${userData.username} (${userId})`)
-    return userId
-  } catch (error) {
-    console.error(`❌ Error creating user ${userData.username}:`, error)
-    return null
   }
+  return null
 }
 
-// Function to create cat profile with local photo
-async function createCatProfile(userId, catName, breed, photoNumber) {
-  try {
-    console.log(`Creating cat profile for ${catName}...`)
-    
-    const ages = ['6 months', '1 year', '2 years', '3 years', '4 years', '5 years', '6 years', '7 years']
-    const sexes = ['Male', 'Female']
-    const personalities = [
-      'Playful and energetic',
-      'Calm and affectionate',
-      'Independent and curious',
-      'Social and friendly',
-      'Mischievous and clever',
-      'Gentle and sweet',
-      'Adventurous and bold',
-      'Lazy and cuddly'
-    ]
-    
-    // Upload profile picture from local files
-    let profilePictureUrl = null
-    if (photoNumber) {
+// Function to create cat profile with local photo and retry logic
+async function createCatProfile(userId, catName, breed, photoNumber, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Creating cat profile for ${catName}... (attempt ${attempt}/${maxRetries})`)
+      
+      const ages = ['6 months', '1 year', '2 years', '3 years', '4 years', '5 years', '6 years', '7 years']
+      const sexes = ['Male', 'Female']
+      const personalities = [
+        'Playful and energetic',
+        'Calm and affectionate',
+        'Independent and curious',
+        'Social and friendly',
+        'Mischievous and clever',
+        'Gentle and sweet',
+        'Adventurous and bold',
+        'Lazy and cuddly'
+      ]
+      
+      // Upload profile picture from local files
+      let profilePictureUrl = null
+      if (photoNumber) {
+        const localImagePath = getLocalCatPhotoPath(photoNumber)
+        profilePictureUrl = await uploadLocalImageToSupabase(
+          localImagePath, 
+          `profile_${catName.toLowerCase()}.jpg`, 
+          userId
+        )
+      }
+      
+      const { data, error } = await supabase
+        .from('cat_profiles')
+        .insert([{
+          user_id: userId,
+          name: catName,
+          breed: breed,
+          age: getRandomItem(ages),
+          sex: getRandomItem(sexes),
+          personality: getRandomItem(personalities),
+          favourite_treat: getRandomItem(['Tuna', 'Salmon', 'Chicken treats', 'Catnip', 'Freeze-dried treats']),
+          favourite_toy: getRandomItem(['Feather wand', 'Laser pointer', 'Catnip mouse', 'Ball', 'String']),
+          favourite_word: getRandomItem(['Treats', 'Outside', 'Play', 'Food', 'Mama']),
+          play_time_preference: getRandomItem(['Morning', 'Afternoon', 'Evening', 'Night', 'Anytime']),
+          profile_picture: profilePictureUrl
+        }])
+        .select()
+        .single()
+      
+      if (error) {
+        throw error
+      }
+      
+      console.log(`✅ Created cat profile: ${catName} (${data.id})`)
+      return data.id
+    } catch (error) {
+      console.error(`❌ Error creating cat profile for ${catName} (attempt ${attempt}/${maxRetries}):`, error.message)
+      
+      if (attempt < maxRetries && (error.message.includes('fetch failed') || error.message.includes('network'))) {
+        console.log(`⏳ Retrying cat profile creation in ${attempt * 2} seconds...`)
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+        continue
+      }
+      
+      return null
+    }
+  }
+  return null
+}
+
+// Function to create cat photo using local images with retry logic
+async function createCatPhoto(userId, catProfileId, catName, photoNumber, caption, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Creating photo for ${catName} using local image ${photoNumber}... (attempt ${attempt}/${maxRetries})`)
+      
+      // Get local image path
       const localImagePath = getLocalCatPhotoPath(photoNumber)
-      profilePictureUrl = await uploadLocalImageToSupabase(
+      
+      if (!fs.existsSync(localImagePath)) {
+        console.error(`❌ Local image not found: ${localImagePath}`)
+        return null
+      }
+      
+      // Upload to Supabase
+      const uploadedImageUrl = await uploadLocalImageToSupabase(
         localImagePath, 
-        `profile_${catName.toLowerCase()}.jpg`, 
+        `${catName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}.jpg`, 
         userId
       )
-    }
-    
-    const { data, error } = await supabase
-      .from('cat_profiles')
-      .insert([{
-        user_id: userId,
-        name: catName,
-        breed: breed,
-        age: getRandomItem(ages),
-        sex: getRandomItem(sexes),
-        personality: getRandomItem(personalities),
-        favourite_treat: getRandomItem(['Tuna', 'Salmon', 'Chicken treats', 'Catnip', 'Freeze-dried treats']),
-        favourite_toy: getRandomItem(['Feather wand', 'Laser pointer', 'Catnip mouse', 'Ball', 'String']),
-        favourite_word: getRandomItem(['Treats', 'Outside', 'Play', 'Food', 'Mama']),
-        play_time_preference: getRandomItem(['Morning', 'Afternoon', 'Evening', 'Night', 'Anytime']),
-        profile_picture: profilePictureUrl
-      }])
-      .select()
-      .single()
-    
-    if (error) {
-      throw error
-    }
-    
-    console.log(`✅ Created cat profile: ${catName} (${data.id})`)
-    return data.id
-  } catch (error) {
-    console.error(`❌ Error creating cat profile for ${catName}:`, error)
-    return null
-  }
-}
-
-// Function to create cat photo using local images
-async function createCatPhoto(userId, catProfileId, catName, photoNumber, caption) {
-  try {
-    console.log(`Creating photo for ${catName} using local image ${photoNumber}...`)
-    
-    // Get local image path
-    const localImagePath = getLocalCatPhotoPath(photoNumber)
-    
-    if (!fs.existsSync(localImagePath)) {
-      console.error(`❌ Local image not found: ${localImagePath}`)
+      
+      if (!uploadedImageUrl) {
+        console.error(`❌ Failed to upload image for ${catName}`)
+        return null
+      }
+      
+      // Create cat photo record
+      const { data, error } = await supabase
+        .from('cats')
+        .insert([{
+          user_id: userId,
+          name: catName,
+          caption: caption,
+          image_url: uploadedImageUrl,
+          cat_profile_id: catProfileId
+        }])
+        .select()
+        .single()
+      
+      if (error) {
+        throw error
+      }
+      
+      console.log(`✅ Created photo for ${catName}: ${caption}`)
+      return data.id
+    } catch (error) {
+      console.error(`❌ Error creating photo for ${catName} (attempt ${attempt}/${maxRetries}):`, error.message)
+      
+      if (attempt < maxRetries && (error.message.includes('fetch failed') || error.message.includes('network'))) {
+        console.log(`⏳ Retrying photo creation in ${attempt * 2} seconds...`)
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+        continue
+      }
+      
       return null
     }
-    
-    // Upload to Supabase
-    const uploadedImageUrl = await uploadLocalImageToSupabase(
-      localImagePath, 
-      `${catName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}.jpg`, 
-      userId
-    )
-    
-    if (!uploadedImageUrl) {
-      console.error(`❌ Failed to upload image for ${catName}`)
-      return null
-    }
-    
-    // Create cat photo record
-    const { data, error } = await supabase
-      .from('cats')
-      .insert([{
-        user_id: userId,
-        name: catName,
-        caption: caption,
-        image_url: uploadedImageUrl,
-        cat_profile_id: catProfileId
-      }])
-      .select()
-      .single()
-    
-    if (error) {
-      throw error
-    }
-    
-    console.log(`✅ Created photo for ${catName}: ${caption}`)
-    return data.id
-  } catch (error) {
-    console.error(`❌ Error creating photo for ${catName}:`, error)
-    return null
   }
+  return null
 }
 
-// Function to create reactions
+// Function to create reactions with retry logic
 async function createReactions(catIds, userIds) {
   try {
     console.log('Creating reactions...')
@@ -427,16 +482,36 @@ async function createReactions(catIds, userIds) {
       }
     }
     
-    // Insert reactions in batches
+    // Insert reactions in batches with retry logic
     const batchSize = 100
     for (let i = 0; i < reactions.length; i += batchSize) {
       const batch = reactions.slice(i, i + batchSize)
-      const { error } = await supabase
-        .from('reactions')
-        .insert(batch)
       
-      if (error) {
-        console.error('Error inserting reaction batch:', error)
+      let success = false
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { error } = await supabase
+            .from('reactions')
+            .insert(batch)
+          
+          if (error) {
+            throw error
+          }
+          
+          success = true
+          break
+        } catch (error) {
+          console.error(`Error inserting reaction batch (attempt ${attempt}/3):`, error.message)
+          
+          if (attempt < 3 && (error.message.includes('fetch failed') || error.message.includes('network'))) {
+            console.log(`⏳ Retrying batch in ${attempt * 2} seconds...`)
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+          }
+        }
+      }
+      
+      if (!success) {
+        console.warn(`⚠️ Failed to insert reaction batch after 3 attempts`)
       }
     }
     
@@ -446,7 +521,7 @@ async function createReactions(catIds, userIds) {
   }
 }
 
-// Test connection function
+// Test connection function with retry logic
 async function testConnection() {
   try {
     console.log('🔗 Testing Supabase connection...')
@@ -456,6 +531,12 @@ async function testConnection() {
     const { data, error } = await supabase.from('users').select('count').limit(1)
     if (error) {
       console.error('❌ Connection test failed:', error.message)
+      if (error.details) {
+        console.error('Details:', error.details)
+      }
+      if (error.hint) {
+        console.error('Hint:', error.hint)
+      }
       return false
     }
     console.log('✅ Connection test successful')
@@ -464,9 +545,10 @@ async function testConnection() {
     console.error('❌ Network connection failed:', error.message)
     console.error('Please check:')
     console.error('1. Your internet connection')
-    console.error('2. Supabase URL is correct')
-    console.error('3. Service role key is valid')
-    console.error('4. No firewall blocking the connection')
+    console.error('2. Supabase URL is correct and starts with https://')
+    console.error('3. Service role key is valid and not expired')
+    console.error('4. No firewall or proxy blocking the connection')
+    console.error('5. Supabase project is active and accessible')
     return false
   }
 }
@@ -477,10 +559,29 @@ async function seedDatabase() {
     console.log('🌱 Starting database seeding with LOCAL cat photos...')
     console.log(`📸 Using 20 local cat photos from public folder`)
     
-    // Test connection first
-    const connectionOk = await testConnection()
+    // Test connection first with multiple attempts
+    let connectionOk = false
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log(`🔗 Connection attempt ${attempt}/3...`)
+      connectionOk = await testConnection()
+      if (connectionOk) break
+      
+      if (attempt < 3) {
+        console.log(`⏳ Waiting ${attempt * 3} seconds before retry...`)
+        await new Promise(resolve => setTimeout(resolve, attempt * 3000))
+      }
+    }
+    
     if (!connectionOk) {
       console.error('❌ Cannot proceed without a working connection to Supabase')
+      console.error('')
+      console.error('💡 Troubleshooting checklist:')
+      console.error('   ✓ Check your internet connection')
+      console.error('   ✓ Verify VITE_SUPABASE_URL is correct and starts with https://')
+      console.error('   ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
+      console.error('   ✓ Ensure Supabase project is active')
+      console.error('   ✓ Check for firewall/proxy blocking connections')
+      console.error('   ✓ Verify .env file exists in scripts/ or project root')
       process.exit(1)
     }
     
@@ -559,6 +660,14 @@ async function seedDatabase() {
     
   } catch (error) {
     console.error('❌ Error during database seeding:', error)
+    console.error('')
+    console.error('💡 Troubleshooting tips:')
+    console.error('   • Ensure you are using the SERVICE_ROLE_KEY, not the ANON_KEY')
+    console.error('   • Check your internet connection')
+    console.error('   • Verify the Supabase URL is correct and starts with https://')
+    console.error('   • Make sure the service role key is not expired')
+    console.error('   • Check if any firewall is blocking the connection')
+    console.error('   • Verify your Supabase project is active and accessible')
   }
 }
 

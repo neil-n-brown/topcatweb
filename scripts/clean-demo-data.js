@@ -1,17 +1,28 @@
 import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-// Load environment variables from the scripts directory
-dotenv.config()
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Try to load environment variables from multiple locations
+// First try the scripts directory, then the parent directory
+dotenv.config({ path: path.join(__dirname, '.env') })
+dotenv.config({ path: path.join(__dirname, '..', '.env') })
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ Missing Supabase configuration.')
-  console.error('Please ensure you have a .env file in the scripts directory with:')
+  console.error('Please ensure you have a .env file with:')
   console.error('VITE_SUPABASE_URL=your_supabase_url')
   console.error('SUPABASE_SERVICE_ROLE_KEY=your_service_role_key')
+  console.error('')
+  console.error('The .env file should be in either:')
+  console.error('- scripts/.env (current directory)')
+  console.error('- .env (project root)')
   console.error('')
   console.error('Note: You need the SERVICE ROLE KEY, not the anon key!')
   process.exit(1)
@@ -20,6 +31,15 @@ if (!supabaseUrl || !supabaseServiceKey) {
 if (supabaseServiceKey === 'your_service_role_key_here') {
   console.error('❌ Please replace "your_service_role_key_here" with your actual Supabase service role key.')
   console.error('You can find this in your Supabase dashboard under Settings > API.')
+  process.exit(1)
+}
+
+// Validate URL format
+try {
+  new URL(supabaseUrl)
+} catch (error) {
+  console.error('❌ Invalid Supabase URL format:', supabaseUrl)
+  console.error('URL should start with https:// and be a valid URL')
   process.exit(1)
 }
 
@@ -35,34 +55,67 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
-// Helper function to handle database operations with better error reporting
-async function safeDelete(tableName, deleteQuery, description) {
-  try {
-    console.log(`🔄 ${description}...`)
-    const result = await deleteQuery
-    
-    if (result.error) {
-      console.error(`❌ Error ${description.toLowerCase()}: ${result.error.message}`)
-      console.error('Full error:', result.error)
+// Helper function to handle database operations with better error reporting and retry logic
+async function safeDelete(tableName, deleteQuery, description, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 ${description}... (attempt ${attempt}/${maxRetries})`)
+      const result = await deleteQuery
+      
+      if (result.error) {
+        console.error(`❌ Error ${description.toLowerCase()}: ${result.error.message}`)
+        if (result.error.details) {
+          console.error('Details:', result.error.details)
+        }
+        if (result.error.hint) {
+          console.error('Hint:', result.error.hint)
+        }
+        
+        // If it's a network error, retry
+        if (result.error.message.includes('fetch failed') || result.error.message.includes('network')) {
+          if (attempt < maxRetries) {
+            console.log(`⏳ Retrying in ${attempt * 2} seconds...`)
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+            continue
+          }
+        }
+        return false
+      } else {
+        console.log(`✅ ${description} completed successfully`)
+        return true
+      }
+    } catch (error) {
+      console.error(`❌ Network error ${description.toLowerCase()}:`, error.message)
+      
+      // If it's a network error and we have retries left, try again
+      if ((error.message.includes('fetch failed') || error.message.includes('network')) && attempt < maxRetries) {
+        console.log(`⏳ Network error, retrying in ${attempt * 2} seconds...`)
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+        continue
+      }
+      
+      if (error.cause) {
+        console.error('Cause:', error.cause)
+      }
       return false
-    } else {
-      console.log(`✅ ${description} completed successfully`)
-      return true
     }
-  } catch (error) {
-    console.error(`❌ Network error ${description.toLowerCase()}:`, error.message)
-    if (error.cause) {
-      console.error('Cause:', error.cause)
-    }
-    return false
   }
+  return false
 }
 
 async function testConnection() {
   try {
+    console.log('🔗 Testing Supabase connection...')
+    
     const { data, error } = await supabase.from('users').select('count').limit(1)
     if (error) {
       console.error('❌ Connection test failed:', error.message)
+      if (error.details) {
+        console.error('Details:', error.details)
+      }
+      if (error.hint) {
+        console.error('Hint:', error.hint)
+      }
       return false
     }
     console.log('✅ Connection test successful')
@@ -71,9 +124,10 @@ async function testConnection() {
     console.error('❌ Network connection failed:', error.message)
     console.error('Please check:')
     console.error('1. Your internet connection')
-    console.error('2. Supabase URL is correct')
-    console.error('3. Service role key is valid')
-    console.error('4. No firewall blocking the connection')
+    console.error('2. Supabase URL is correct and starts with https://')
+    console.error('3. Service role key is valid and not expired')
+    console.error('4. No firewall or proxy blocking the connection')
+    console.error('5. Supabase project is active and accessible')
     return false
   }
 }
@@ -574,10 +628,29 @@ async function cleanDemoData() {
   try {
     console.log('🧹 Starting comprehensive demo data cleanup...')
     
-    // Test connection first
-    const connectionOk = await testConnection()
+    // Test connection first with multiple attempts
+    let connectionOk = false
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log(`🔗 Connection attempt ${attempt}/3...`)
+      connectionOk = await testConnection()
+      if (connectionOk) break
+      
+      if (attempt < 3) {
+        console.log(`⏳ Waiting ${attempt * 3} seconds before retry...`)
+        await new Promise(resolve => setTimeout(resolve, attempt * 3000))
+      }
+    }
+    
     if (!connectionOk) {
       console.error('❌ Cannot proceed without a working connection to Supabase')
+      console.error('')
+      console.error('💡 Troubleshooting checklist:')
+      console.error('   ✓ Check your internet connection')
+      console.error('   ✓ Verify VITE_SUPABASE_URL is correct and starts with https://')
+      console.error('   ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
+      console.error('   ✓ Ensure Supabase project is active')
+      console.error('   ✓ Check for firewall/proxy blocking connections')
+      console.error('   ✓ Verify .env file exists in scripts/ or project root')
       process.exit(1)
     }
     
@@ -590,11 +663,15 @@ async function cleanDemoData() {
     } catch (error) {
       console.error('❌ Failed to list users:', error.message)
       console.error('This usually means the service role key is incorrect or expired.')
+      console.error('Please verify your SUPABASE_SERVICE_ROLE_KEY in the .env file.')
       process.exit(1)
     }
     
     if (authError) {
       console.error('❌ Auth error:', authError.message)
+      if (authError.message.includes('JWT')) {
+        console.error('This indicates an invalid or expired service role key.')
+      }
       process.exit(1)
     }
     
@@ -769,9 +846,10 @@ async function cleanDemoData() {
     console.log('💡 Troubleshooting tips:')
     console.log('   • Ensure you are using the SERVICE_ROLE_KEY, not the ANON_KEY')
     console.log('   • Check your internet connection')
-    console.log('   • Verify the Supabase URL is correct')
+    console.log('   • Verify the Supabase URL is correct and starts with https://')
     console.log('   • Make sure the service role key is not expired')
     console.log('   • Check if any firewall is blocking the connection')
+    console.log('   • Verify your Supabase project is active and accessible')
   }
 }
 
