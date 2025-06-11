@@ -1,66 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { Smile } from 'lucide-react'
+import { RefreshCw, BarChart3 } from 'lucide-react'
 import SwipeCard from '../components/SwipeCard'
 import EmojiPicker from '../components/EmojiPicker'
-import { supabase, Cat } from '../lib/supabase'
+import { swipeService, EnhancedCat, INTERACTION_TYPES } from '../lib/swipeService'
 import { useAuth } from '../contexts/AuthContext'
-
-// Enhanced Cat interface with caption and profile info
-interface EnhancedCat extends Cat {
-  caption?: string
-  cat_profile?: {
-    id: string
-    name: string
-    profile_picture?: string
-  }
-}
-
-// Demo cats for when Supabase is not configured
-const demoCats: EnhancedCat[] = [
-  {
-    id: '1',
-    user_id: 'demo',
-    name: 'Whiskers',
-    description: 'A fluffy orange tabby who loves to play',
-    caption: 'Playing in the sunny garden 🌞',
-    image_url: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=400',
-    upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'demo_user', created_at: new Date().toISOString() },
-    cat_profile: {
-      id: '1',
-      name: 'Whiskers',
-      profile_picture: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=100'
-    }
-  },
-  {
-    id: '2',
-    user_id: 'demo',
-    name: 'Luna',
-    description: 'A beautiful black cat with green eyes',
-    caption: 'Nap time in my favorite spot',
-    image_url: 'https://images.pexels.com/photos/416160/pexels-photo-416160.jpeg?auto=compress&cs=tinysrgb&w=400',
-    upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'cat_lover', created_at: new Date().toISOString() },
-    cat_profile: {
-      id: '2',
-      name: 'Luna'
-    }
-  },
-  {
-    id: '3',
-    user_id: 'demo',
-    name: 'Mittens',
-    description: 'Loves to sleep in sunny spots',
-    image_url: 'https://images.pexels.com/photos/1170986/pexels-photo-1170986.jpeg?auto=compress&cs=tinysrgb&w=400',
-    upload_date: new Date().toISOString(),
-    user: { id: 'demo', email: 'demo@example.com', username: 'kitty_fan', created_at: new Date().toISOString() },
-    cat_profile: {
-      id: '3',
-      name: 'Mittens'
-    }
-  }
-]
+import { isDemoMode } from '../lib/supabase'
 
 export default function SwipePage() {
   const { user } = useAuth()
@@ -68,132 +13,181 @@ export default function SwipePage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [isDemo, setIsDemo] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [userStats, setUserStats] = useState<any>(null)
+  const [showStats, setShowStats] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchCats()
-  }, [])
+  // Fetch cats with smart randomization
+  const fetchCats = useCallback(async (refresh: boolean = false) => {
+    if (!user) return
 
-  const fetchCats = async () => {
     try {
-      // Enhanced query to include caption and cat profile information
-      const { data, error } = await supabase
-        .from('cats')
-        .select(`
-          *,
-          user:users(*),
-          cat_profile:cat_profiles(id, name, profile_picture)
-        `)
-        .neq('user_id', user?.id)
-        .order('upload_date', { ascending: false })
-        .limit(20)
-
-      if (error && error.message.includes('Demo mode')) {
-        // Use demo cats when Supabase is not configured
-        setIsDemo(true)
-        setCats(demoCats)
-      } else if (error) {
-        throw error
-      } else {
-        setCats(data || [])
+      setError(null)
+      if (refresh) {
+        setRefreshing(true)
+        // Start new session for refresh
+        await swipeService.startNewSession(user.id)
       }
-    } catch (error) {
+
+      const randomizedCats = await swipeService.getRandomizedCats(
+        user.id,
+        20, // Load 20 cats at a time
+        true  // Exclude already interacted cats
+      )
+
+      setCats(randomizedCats)
+      setCurrentIndex(0)
+
+      // Load user stats
+      const stats = await swipeService.getUserStats(user.id)
+      setUserStats(stats)
+
+    } catch (error: any) {
       console.error('Error fetching cats:', error)
-      // Fallback to demo cats
-      setIsDemo(true)
-      setCats(demoCats)
+      setError('Failed to load cats. Please try again.')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
-  }
+  }, [user])
 
+  // Load more cats when running low
+  const loadMoreCats = useCallback(async () => {
+    if (!user || currentIndex < cats.length - 3) return
+
+    try {
+      const moreCats = await swipeService.getRandomizedCats(
+        user.id,
+        10, // Load 10 more cats
+        true
+      )
+
+      if (moreCats.length > 0) {
+        setCats(prev => [...prev, ...moreCats])
+      }
+    } catch (error) {
+      console.error('Error loading more cats:', error)
+    }
+  }, [user, currentIndex, cats.length])
+
+  // Record view interaction when cat is shown
+  const recordView = useCallback(async (catId: string) => {
+    if (!user) return
+
+    try {
+      await swipeService.recordInteraction(
+        user.id,
+        catId,
+        INTERACTION_TYPES.VIEW
+      )
+    } catch (error) {
+      console.error('Error recording view:', error)
+    }
+  }, [user])
+
+  // Handle swipe interactions
   const handleSwipe = async (direction: 'left' | 'right') => {
     const currentCat = cats[currentIndex]
     if (!currentCat || !user) return
 
-    // Record the swipe as a reaction (only if not in demo mode)
-    if (direction === 'right' && !isDemo) {
-      try {
-        await supabase
-          .from('reactions')
-          .insert([
-            {
-              user_id: user.id,
-              cat_id: currentCat.id,
-              emoji_type: '❤️',
-            },
-          ])
-      } catch (error) {
-        console.error('Error recording reaction:', error)
-      }
-    }
+    try {
+      // Record the swipe interaction
+      const interactionType = direction === 'right' 
+        ? INTERACTION_TYPES.SWIPE_RIGHT 
+        : INTERACTION_TYPES.SWIPE_LEFT
 
-    // Move to next cat
-    setCurrentIndex(prev => prev + 1)
+      await swipeService.recordInteraction(
+        user.id,
+        currentCat.id,
+        interactionType
+      )
 
-    // Load more cats if running low (only if not in demo mode)
-    if (currentIndex >= cats.length - 3 && !isDemo) {
-      fetchCats()
+      // Move to next cat
+      setCurrentIndex(prev => prev + 1)
+
+      // Load more cats if running low
+      await loadMoreCats()
+
+    } catch (error) {
+      console.error('Error recording swipe:', error)
+      // Still move to next cat even if recording fails
+      setCurrentIndex(prev => prev + 1)
     }
   }
 
+  // Handle emoji reactions
   const handleEmojiSelect = async (emoji: string) => {
     const currentCat = cats[currentIndex]
     if (!currentCat || !user) return
 
-    // Record emoji reaction (only if not in demo mode)
-    if (!isDemo) {
-      try {
-        await supabase
-          .from('reactions')
-          .insert([
-            {
-              user_id: user.id,
-              cat_id: currentCat.id,
-              emoji_type: emoji,
-            },
-          ])
-      } catch (error) {
-        console.error('Error recording emoji reaction:', error)
-      }
-    }
+    try {
+      await swipeService.recordInteraction(
+        user.id,
+        currentCat.id,
+        INTERACTION_TYPES.EMOJI_REACTION,
+        emoji
+      )
 
-    setShowEmojiPicker(false)
-    setCurrentIndex(prev => prev + 1)
+      setShowEmojiPicker(false)
+      setCurrentIndex(prev => prev + 1)
 
-    // Load more cats if running low (only if not in demo mode)
-    if (currentIndex >= cats.length - 3 && !isDemo) {
-      fetchCats()
+      // Load more cats if running low
+      await loadMoreCats()
+
+    } catch (error) {
+      console.error('Error recording emoji reaction:', error)
+      setShowEmojiPicker(false)
+      setCurrentIndex(prev => prev + 1)
     }
   }
 
+  // Handle report functionality
   const handleReport = async () => {
     const currentCat = cats[currentIndex]
     if (!currentCat || !user) return
 
-    if (isDemo) {
+    if (isDemoMode) {
       alert('Demo mode - reporting is not available 😸')
+      setCurrentIndex(prev => prev + 1)
       return
     }
 
     try {
-      await supabase
-        .from('reports')
-        .insert([
-          {
-            reporter_id: user.id,
-            cat_id: currentCat.id,
-            reason: 'inappropriate_content',
-            status: 'pending',
-          },
-        ])
+      await swipeService.recordInteraction(
+        user.id,
+        currentCat.id,
+        INTERACTION_TYPES.REPORT
+      )
 
       alert('Thank you for reporting! We will review this content. 🐱💕')
       setCurrentIndex(prev => prev + 1)
+
     } catch (error) {
       console.error('Error reporting cat:', error)
+      alert('Failed to submit report. Please try again.')
     }
   }
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchCats(true)
+  }
+
+  // Initial load
+  useEffect(() => {
+    if (user) {
+      fetchCats()
+    }
+  }, [user, fetchCats])
+
+  // Record view when current cat changes
+  useEffect(() => {
+    const currentCat = cats[currentIndex]
+    if (currentCat && user) {
+      recordView(currentCat.id)
+    }
+  }, [currentIndex, cats, recordView, user])
 
   if (loading) {
     return (
@@ -201,7 +195,27 @@ export default function SwipePage() {
         <div className="text-center">
           <div className="text-6xl mb-4 loading-paw">🐾</div>
           <div className="text-lg text-cute-primary font-medium">Finding adorable cats...</div>
-          <div className="text-sm text-cute-secondary mt-2">Preparing the cuteness! 😻</div>
+          <div className="text-sm text-cute-secondary mt-2">Using smart randomization! 😻</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center pb-20 md:pb-0 md:pl-72">
+        <div className="card-cute p-8 max-w-md">
+          <div className="text-8xl mb-6">😿</div>
+          <h2 className="text-2xl font-bold text-cute-primary mb-4">Oops! Something went wrong</h2>
+          <p className="text-cute-secondary mb-6 leading-relaxed">{error}</p>
+          <button
+            onClick={() => fetchCats(true)}
+            className="btn-cute hover-bounce flex items-center space-x-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Try Again</span>
+            <span className="text-xl">🔄</span>
+          </button>
         </div>
       </div>
     )
@@ -211,25 +225,55 @@ export default function SwipePage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center pb-20 md:pb-0 md:pl-72">
         <div className="card-cute p-8 max-w-md">
-          <div className="text-8xl mb-6 float-animation">😿</div>
-          <h2 className="text-2xl font-bold text-cute-primary mb-4">No more cats!</h2>
+          <div className="text-8xl mb-6 float-animation">🎉</div>
+          <h2 className="text-2xl font-bold text-cute-primary mb-4">You've seen all available cats!</h2>
           <p className="text-cute-secondary mb-6 leading-relaxed">
-            {isDemo ? 'This is demo mode. Connect to Supabase to see real cats! 🚀😸' : 'Check back later for more adorable cats to rate. 🐱💕'}
+            {isDemoMode 
+              ? 'This is demo mode. In the full app, new cats are added regularly! 🚀😸' 
+              : 'Check back later for more adorable cats, or refresh to see cats you might have missed. 🐱💕'
+            }
           </p>
-          <button
-            onClick={() => {
-              setCurrentIndex(0)
-              if (isDemo) {
-                setCats([...demoCats])
-              } else {
-                fetchCats()
-              }
-            }}
-            className="btn-cute hover-bounce flex items-center space-x-2"
-          >
-            <span>{isDemo ? 'Restart Demo' : 'Refresh'}</span>
-            <span className="text-xl">🔄</span>
-          </button>
+          
+          {userStats && (
+            <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-6">
+              <h3 className="font-bold text-cute-primary mb-2">Your Session Stats 📊</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>Cats viewed: {userStats.cats_viewed || 0}</div>
+                <div>Reactions: {userStats.emoji_reactions || 0}</div>
+                <div>Likes: {userStats.swipes_right || 0}</div>
+                <div>Passes: {userStats.swipes_left || 0}</div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="btn-cute hover-bounce flex items-center space-x-2 w-full justify-center"
+            >
+              {refreshing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Getting fresh cats...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Get Fresh Cats</span>
+                  <span className="text-xl">🔄</span>
+                </>
+              )}
+            </button>
+            
+            <button
+              onClick={() => setShowStats(!showStats)}
+              className="w-full py-2 text-cute-secondary hover:text-cute-primary transition-colors flex items-center justify-center space-x-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>View Detailed Stats</span>
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -240,24 +284,75 @@ export default function SwipePage() {
   return (
     <div className="min-h-screen flex flex-col pb-20 md:pb-0 md:pl-72">
       {/* Demo mode indicator */}
-      {isDemo && (
+      {isDemoMode && (
         <div className="alert-cute-warning p-4 text-center border-b border-yellow-300">
           <p className="font-medium flex items-center justify-center">
             <span className="text-2xl mr-2">🎮</span>
-            Demo Mode - Connect to Supabase to use the full app!
+            Demo Mode - Smart randomization active! Connect to Supabase for full features.
             <span className="text-2xl ml-2">😸</span>
           </p>
         </div>
       )}
 
-      {/* Cute Header */}
-      <div className="text-center py-6 relative z-10">
-        <div className="flex items-center justify-center space-x-2 mb-2">
-          <span className="text-2xl">😻</span>
-          <h1 className="text-2xl font-bold text-cute-primary">Rate This Cutie!</h1>
-          <span className="text-2xl">💕</span>
+      {/* Header with stats and refresh */}
+      <div className="text-center py-4 relative z-10">
+        <div className="flex items-center justify-between max-w-sm mx-auto px-4">
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="p-2 text-cute-secondary hover:text-cute-primary transition-colors rounded-full hover:bg-white/30"
+            title="View Stats"
+          >
+            <BarChart3 className="w-5 h-5" />
+          </button>
+
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-1">
+              <span className="text-2xl">😻</span>
+              <h1 className="text-xl font-bold text-cute-primary">Smart Swipe!</h1>
+              <span className="text-2xl">💕</span>
+            </div>
+            <p className="text-sm text-cute-secondary">Fair & randomized</p>
+          </div>
+
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-2 text-cute-secondary hover:text-cute-primary transition-colors rounded-full hover:bg-white/30"
+            title="Refresh Cats"
+          >
+            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
-        <p className="text-cute-secondary">Swipe or use buttons to rate</p>
+
+        {/* Stats display */}
+        {showStats && userStats && (
+          <div className="mt-4 mx-4">
+            <div className="card-cute p-4 max-w-sm mx-auto">
+              <h3 className="font-bold text-cute-primary mb-3 flex items-center justify-center">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Your Stats
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-orange-600">{userStats.cats_viewed || 0}</div>
+                  <div className="text-cute-secondary">Viewed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-pink-600">{userStats.emoji_reactions || 0}</div>
+                  <div className="text-cute-secondary">Reactions</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-600">{userStats.swipes_right || 0}</div>
+                  <div className="text-cute-secondary">Likes</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-gray-600">{userStats.swipes_left || 0}</div>
+                  <div className="text-cute-secondary">Passes</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile-optimized container */}
@@ -276,7 +371,7 @@ export default function SwipePage() {
         </div>
       </div>
 
-      {/* Cute Action Buttons */}
+      {/* Action Buttons */}
       <div className="fixed bottom-32 md:bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-4 z-20">
         {/* Pass Button */}
         <button
@@ -314,6 +409,11 @@ export default function SwipePage() {
               {currentIndex + 1} of {cats.length}
             </span>
             <span className="text-lg">🐱</span>
+            {currentCat?.exposure_score !== undefined && (
+              <span className="text-xs text-cute-secondary">
+                (Fair: {(currentCat.exposure_score * 100).toFixed(0)}%)
+              </span>
+            )}
           </div>
         </div>
       </div>

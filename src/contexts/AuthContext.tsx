@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase, User, isDemoMode } from '../lib/supabase'
+import { swipeService } from '../lib/swipeService'
 
 interface AuthContextType {
   user: User | null
@@ -81,6 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             fetchUserProfile(session.user.id).catch(console.error)
           } else {
             setUser(null)
+            // Clear swipe service session when user logs out
+            swipeService.clearSession()
             setLoading(false)
           }
         })
@@ -204,6 +207,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
       setSupabaseUser(null)
       setError(null)
+      // Clear swipe service session
+      swipeService.clearSession()
     }
   }
 
