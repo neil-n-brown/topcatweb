@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename)
 
 // Supabase configuration
 const supabaseUrl = process.env.VITE_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY // You'll need to add this
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing Supabase configuration. Please set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.')
@@ -23,549 +23,216 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
-// Demo user data - female cat lovers
+// Real cat names that are popular and cute
+const catNames = [
+  'Luna', 'Bella', 'Oliver', 'Charlie', 'Lucy', 'Max', 'Lily', 'Simba',
+  'Milo', 'Chloe', 'Leo', 'Nala', 'Smokey', 'Shadow', 'Tiger', 'Princess',
+  'Mittens', 'Whiskers', 'Ginger', 'Oreo', 'Patches', 'Snowball', 'Coco',
+  'Daisy', 'Felix', 'Jasper', 'Ruby', 'Rosie', 'Oscar', 'Zoe', 'Mia',
+  'Sophie', 'Toby', 'Molly', 'Jack', 'Lola', 'Sam', 'Penny', 'Buddy',
+  'Gracie', 'Tucker', 'Maggie', 'Bear', 'Sadie', 'Duke', 'Stella'
+]
+
+// Funny captions written by female cat lovers
+const catCaptions = [
+  "When your cat gives you THAT look and you know you're in trouble 😹",
+  "My therapist: 'Your cat can't actually judge you.' My cat: 👁️👄👁️",
+  "POV: You opened a can of tuna and suddenly have a best friend 🐟💕",
+  "This is my 'I knocked something off your desk' face 😇",
+  "Caught red-pawed destroying the toilet paper... again 🧻😅",
+  "When you realize the red dot will never be caught but you must try anyway 🔴",
+  "My cat's daily schedule: Sleep, judge humans, knock things over, repeat 😴",
+  "That moment when you find the PERFECT nap spot ☀️😻",
+  "My human thinks they own me... how adorable 👑",
+  "Excuse me, this is MY chair now. You may find somewhere else to sit 💺",
+  "When someone says they're a dog person in front of me 🙄",
+  "3AM zoomies because why sleep when you can ZOOM? 🏃‍♀️💨",
+  "My face when the food bowl is only 90% full 😤",
+  "Plotting world domination from my cardboard fortress 📦👑",
+  "When you hear the treat bag crinkle from three rooms away 👂✨",
+  "This box is clearly made for me, regardless of size 📦😸",
+  "My human's keyboard makes the perfect bed, obviously ⌨️😴",
+  "When you're trying to be photogenic but your personality shows 📸",
+  "That 'I definitely didn't break anything' innocent face 😇",
+  "Sunbathing is a full-time job and I take it very seriously ☀️",
+  "My reaction when someone moves me from my favorite spot 😾",
+  "Professional bird watcher and window supervisor 🐦👀",
+  "When you realize you're out of treats and must resort to being cute 🥺",
+  "This is my 'feed me or I'll knock everything off the counter' look 😼",
+  "Caught in 4K being absolutely adorable 📹💕",
+  "My human bought me a $50 bed but this cardboard box hits different 📦",
+  "When you're trying to work from home but your supervisor has other plans 💻😹",
+  "That post-grooming glow ✨🛁",
+  "My face when someone tries to move me during my 18th nap of the day 😴",
+  "Professional treat quality inspector reporting for duty 🕵️‍♀️",
+  "This is my 'I love you but also give me space' face 😽",
+  "When you find the one warm spot in the entire house ☀️😻",
+  "My human thinks they're the boss... how cute 😏",
+  "Caught being a perfect angel (for once) 😇✨",
+  "This is my 'I'm not spoiled, I'm just well-loved' pose 💅",
+  "When you realize the vacuum is coming out and it's time to HIDE 🏃‍♀️💨",
+  "My daily meditation: staring at the wall for no reason 🧘‍♀️",
+  "That 'I definitely belong on this expensive furniture' energy 🛋️👑",
+  "Professional lap warmer and purr machine at your service 🥰",
+  "This is my 'I'm judging your life choices' face 🤨"
+]
+
+// High-quality cat photo URLs from Pexels (verified cat photos)
+const catPhotoUrls = [
+  'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/416160/pexels-photo-416160.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1170986/pexels-photo-1170986.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2071882/pexels-photo-2071882.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1741205/pexels-photo-1741205.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1056251/pexels-photo-1056251.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1643457/pexels-photo-1643457.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2194261/pexels-photo-2194261.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1276553/pexels-photo-1276553.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1404819/pexels-photo-1404819.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1314550/pexels-photo-1314550.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1571076/pexels-photo-1571076.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1183434/pexels-photo-1183434.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1444321/pexels-photo-1444321.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1661535/pexels-photo-1661535.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1687831/pexels-photo-1687831.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1741206/pexels-photo-1741206.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2061057/pexels-photo-2061057.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2173872/pexels-photo-2173872.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2361952/pexels-photo-2361952.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1543793/pexels-photo-1543793.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1828875/pexels-photo-1828875.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2558605/pexels-photo-2558605.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/3687957/pexels-photo-3687957.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/4587955/pexels-photo-4587955.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/5745204/pexels-photo-5745204.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/6568960/pexels-photo-6568960.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/7725706/pexels-photo-7725706.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/8434791/pexels-photo-8434791.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/9069129/pexels-photo-9069129.jpeg?auto=compress&cs=tinysrgb&w=800'
+]
+
+// Demo user data - female cat lovers with realistic usernames
 const demoUsers = [
   {
     username: 'sarah_catlover',
     email: 'sarah@test.com',
-    firstName: 'Sarah',
-    cats: [
-      {
-        name: 'Luna',
-        breed: 'British Shorthair',
-        age: '2 years',
-        sex: 'Female',
-        personality: 'Playful and curious, loves to explore every corner of the house',
-        favourite_person: 'Sarah',
-        favourite_treat: 'Salmon treats',
-        favourite_toy: 'Feather wand',
-        favourite_word: 'Treats',
-        play_time_preference: 'Evening',
-        photos: [
-          {
-            caption: 'Luna discovered the perfect nap spot in my laundry basket! 😴🧺',
-            searchTerm: 'cute gray cat sleeping'
-          },
-          {
-            caption: 'When Luna realizes it\'s treat time and gives me THOSE eyes 👀✨',
-            searchTerm: 'british shorthair cat looking'
-          }
-        ]
-      }
-    ]
+    firstName: 'Sarah'
   },
   {
     username: 'emma_kitty',
     email: 'emma@test.com',
-    firstName: 'Emma',
-    cats: [
-      {
-        name: 'Whiskers',
-        breed: 'Orange Tabby',
-        age: '3 years',
-        sex: 'Male',
-        personality: 'Mischievous and energetic, always getting into trouble',
-        favourite_person: 'Emma',
-        favourite_treat: 'Tuna',
-        favourite_toy: 'Catnip mouse',
-        favourite_word: 'Outside',
-        play_time_preference: 'Morning',
-        photos: [
-          {
-            caption: 'Whiskers thinks he\'s helping with my work from home setup 💻😹',
-            searchTerm: 'orange tabby cat computer'
-          }
-        ]
-      }
-    ]
+    firstName: 'Emma'
   },
   {
     username: 'mia_meow',
     email: 'mia@test.com',
-    firstName: 'Mia',
-    cats: [
-      {
-        name: 'Shadow',
-        breed: 'Black Cat',
-        age: '1 year',
-        sex: 'Female',
-        personality: 'Mysterious and elegant, loves to pose for photos',
-        favourite_person: 'Mia',
-        favourite_treat: 'Chicken',
-        favourite_toy: 'Laser pointer',
-        favourite_word: 'Pretty',
-        play_time_preference: 'Night',
-        photos: [
-          {
-            caption: 'Shadow being absolutely DRAMATIC as usual 🖤✨ #BlackCatMagic',
-            searchTerm: 'black cat dramatic pose'
-          }
-        ]
-      }
-    ]
+    firstName: 'Mia'
   },
   {
     username: 'lily_pawsome',
     email: 'lily@test.com',
-    firstName: 'Lily',
-    cats: [
-      {
-        name: 'Mittens',
-        breed: 'Ragdoll',
-        age: '4 years',
-        sex: 'Female',
-        personality: 'Gentle giant, loves cuddles and being carried around',
-        favourite_person: 'Lily',
-        favourite_treat: 'Freeze-dried chicken',
-        favourite_toy: 'Stuffed mouse',
-        favourite_word: 'Cuddles',
-        play_time_preference: 'Afternoon',
-        photos: [
-          {
-            caption: 'Mittens in full fluff mode after her grooming session! 🎀💕',
-            searchTerm: 'ragdoll cat fluffy'
-          }
-        ]
-      }
-    ]
+    firstName: 'Lily'
   },
   {
     username: 'zoe_feline',
     email: 'zoe@test.com',
-    firstName: 'Zoe',
-    cats: [
-      {
-        name: 'Bella',
-        breed: 'Siamese',
-        age: '2 years',
-        sex: 'Female',
-        personality: 'Vocal and demanding, always has something to say',
-        favourite_person: 'Zoe',
-        favourite_treat: 'Fish flakes',
-        favourite_toy: 'Interactive puzzle',
-        favourite_word: 'Mama',
-        play_time_preference: 'Morning',
-        photos: [
-          {
-            caption: 'Bella giving me a lecture about being 5 minutes late with breakfast 😤🗣️',
-            searchTerm: 'siamese cat meowing'
-          }
-        ]
-      }
-    ]
+    firstName: 'Zoe'
   },
   {
     username: 'grace_whiskers',
     email: 'grace@test.com',
-    firstName: 'Grace',
-    cats: [
-      {
-        name: 'Coco',
-        breed: 'Persian',
-        age: '3 years',
-        sex: 'Female',
-        personality: 'Regal and sophisticated, expects royal treatment',
-        favourite_person: 'Grace',
-        favourite_treat: 'Gourmet pâté',
-        favourite_toy: 'Silk ribbon',
-        favourite_word: 'Princess',
-        play_time_preference: 'Evening',
-        photos: [
-          {
-            caption: 'Princess Coco demands her daily brushing session 👑✨',
-            searchTerm: 'persian cat grooming'
-          }
-        ]
-      }
-    ]
+    firstName: 'Grace'
   },
   {
     username: 'ava_purr',
     email: 'ava@test.com',
-    firstName: 'Ava',
-    cats: [
-      {
-        name: 'Ginger',
-        breed: 'Maine Coon',
-        age: '5 years',
-        sex: 'Male',
-        personality: 'Gentle giant with a big heart and bigger appetite',
-        favourite_person: 'Ava',
-        favourite_treat: 'Salmon jerky',
-        favourite_toy: 'Giant feather',
-        favourite_word: 'Food',
-        play_time_preference: 'All day',
-        photos: [
-          {
-            caption: 'Ginger\'s reaction when I open literally ANY bag in the kitchen 🍽️😻',
-            searchTerm: 'maine coon cat big'
-          }
-        ]
-      }
-    ]
+    firstName: 'Ava'
   },
   {
     username: 'chloe_cats',
     email: 'chloe@test.com',
-    firstName: 'Chloe',
-    cats: [
-      {
-        name: 'Patches',
-        breed: 'Calico',
-        age: '2 years',
-        sex: 'Female',
-        personality: 'Sassy and independent, rules the house with an iron paw',
-        favourite_person: 'Chloe',
-        favourite_treat: 'Catnip',
-        favourite_toy: 'Cardboard box',
-        favourite_word: 'Mine',
-        play_time_preference: 'When she feels like it',
-        photos: [
-          {
-            caption: 'Patches claiming her new cardboard kingdom 📦👑 #BoxLife',
-            searchTerm: 'calico cat in box'
-          }
-        ]
-      }
-    ]
+    firstName: 'Chloe'
   },
   {
     username: 'maya_meows',
     email: 'maya@test.com',
-    firstName: 'Maya',
-    cats: [
-      {
-        name: 'Snowball',
-        breed: 'White Persian',
-        age: '1 year',
-        sex: 'Female',
-        personality: 'Pure and innocent, loves to play with anything that moves',
-        favourite_person: 'Maya',
-        favourite_treat: 'Milk treats',
-        favourite_toy: 'Pom pom balls',
-        favourite_word: 'Play',
-        play_time_preference: 'Morning',
-        photos: [
-          {
-            caption: 'Snowball discovered the joy of toilet paper... RIP my bathroom 🧻😅',
-            searchTerm: 'white persian kitten playing'
-          }
-        ]
-      }
-    ]
+    firstName: 'Maya'
   },
   {
     username: 'ruby_furbaby',
     email: 'ruby@test.com',
-    firstName: 'Ruby',
-    cats: [
-      {
-        name: 'Tiger',
-        breed: 'Bengal',
-        age: '2 years',
-        sex: 'Male',
-        personality: 'Wild at heart, loves to climb and explore high places',
-        favourite_person: 'Ruby',
-        favourite_treat: 'Raw chicken',
-        favourite_toy: 'Climbing tree',
-        favourite_word: 'Adventure',
-        play_time_preference: 'Dawn',
-        photos: [
-          {
-            caption: 'Tiger living his best life on top of the fridge again 🐅⬆️',
-            searchTerm: 'bengal cat climbing'
-          }
-        ]
-      }
-    ]
+    firstName: 'Ruby'
   },
   {
     username: 'sophia_kitties',
     email: 'sophia@test.com',
-    firstName: 'Sophia',
-    cats: [
-      {
-        name: 'Daisy',
-        breed: 'Scottish Fold',
-        age: '3 years',
-        sex: 'Female',
-        personality: 'Sweet and gentle, loves to sit like a human',
-        favourite_person: 'Sophia',
-        favourite_treat: 'Yogurt drops',
-        favourite_toy: 'Soft blanket',
-        favourite_word: 'Gentle',
-        play_time_preference: 'Quiet time',
-        photos: [
-          {
-            caption: 'Daisy sitting like a proper lady at the dinner table 🍽️😂',
-            searchTerm: 'scottish fold cat sitting'
-          }
-        ]
-      }
-    ]
+    firstName: 'Sophia'
   },
   {
     username: 'hannah_paws',
     email: 'hannah@test.com',
-    firstName: 'Hannah',
-    cats: [
-      {
-        name: 'Oreo',
-        breed: 'Tuxedo Cat',
-        age: '4 years',
-        sex: 'Male',
-        personality: 'Formal and dignified, always dressed for success',
-        favourite_person: 'Hannah',
-        favourite_treat: 'Cheese',
-        favourite_toy: 'Bow tie',
-        favourite_word: 'Handsome',
-        play_time_preference: 'Business hours',
-        photos: [
-          {
-            caption: 'Oreo ready for his job interview at the tuna factory 👔💼',
-            searchTerm: 'tuxedo cat formal'
-          }
-        ]
-      }
-    ]
+    firstName: 'Hannah'
   },
   {
     username: 'olivia_catmom',
     email: 'olivia@test.com',
-    firstName: 'Olivia',
-    cats: [
-      {
-        name: 'Pumpkin',
-        breed: 'Orange Tabby',
-        age: '1 year',
-        sex: 'Female',
-        personality: 'Energetic kitten who thinks everything is a toy',
-        favourite_person: 'Olivia',
-        favourite_treat: 'Pumpkin treats',
-        favourite_toy: 'Everything',
-        favourite_word: 'Play',
-        play_time_preference: '24/7',
-        photos: [
-          {
-            caption: 'Pumpkin found my yarn stash... send help 🧶😱',
-            searchTerm: 'orange kitten playing yarn'
-          }
-        ]
-      }
-    ]
+    firstName: 'Olivia'
   },
   {
     username: 'natalie_fluff',
     email: 'natalie@test.com',
-    firstName: 'Natalie',
-    cats: [
-      {
-        name: 'Smokey',
-        breed: 'Russian Blue',
-        age: '5 years',
-        sex: 'Male',
-        personality: 'Calm and observant, the wise old soul of the house',
-        favourite_person: 'Natalie',
-        favourite_treat: 'Salmon',
-        favourite_toy: 'Window perch',
-        favourite_word: 'Peace',
-        play_time_preference: 'Sunset',
-        photos: [
-          {
-            caption: 'Smokey contemplating life and the meaning of treats 🤔💭',
-            searchTerm: 'russian blue cat window'
-          }
-        ]
-      }
-    ]
+    firstName: 'Natalie'
   },
   {
     username: 'jessica_purrs',
     email: 'jessica@test.com',
-    firstName: 'Jessica',
-    cats: [
-      {
-        name: 'Muffin',
-        breed: 'Munchkin',
-        age: '2 years',
-        sex: 'Female',
-        personality: 'Small but mighty, proves size doesn\'t matter',
-        favourite_person: 'Jessica',
-        favourite_treat: 'Mini treats',
-        favourite_toy: 'Small ball',
-        favourite_word: 'Tiny',
-        play_time_preference: 'Short bursts',
-        photos: [
-          {
-            caption: 'Muffin proving that good things come in small packages 🧁💕',
-            searchTerm: 'munchkin cat small'
-          }
-        ]
-      }
-    ]
+    firstName: 'Jessica'
   },
   {
     username: 'amanda_whiskers',
     email: 'amanda@test.com',
-    firstName: 'Amanda',
-    cats: [
-      {
-        name: 'Duchess',
-        breed: 'Turkish Angora',
-        age: '3 years',
-        sex: 'Female',
-        personality: 'Elegant and graceful, moves like she\'s dancing',
-        favourite_person: 'Amanda',
-        favourite_treat: 'Caviar treats',
-        favourite_toy: 'Silk scarf',
-        favourite_word: 'Elegant',
-        play_time_preference: 'Graceful moments',
-        photos: [
-          {
-            caption: 'Duchess practicing her runway walk for Paris Fashion Week 💃✨',
-            searchTerm: 'turkish angora cat elegant'
-          }
-        ]
-      }
-    ]
+    firstName: 'Amanda'
   },
   {
     username: 'rachel_kitty',
     email: 'rachel@test.com',
-    firstName: 'Rachel',
-    cats: [
-      {
-        name: 'Biscuit',
-        breed: 'British Longhair',
-        age: '4 years',
-        sex: 'Male',
-        personality: 'Laid-back and chill, the ultimate couch potato',
-        favourite_person: 'Rachel',
-        favourite_treat: 'Biscuits',
-        favourite_toy: 'Couch cushion',
-        favourite_word: 'Relax',
-        play_time_preference: 'Never',
-        photos: [
-          {
-            caption: 'Biscuit mastering the art of doing absolutely nothing 😴🛋️',
-            searchTerm: 'british longhair cat lazy'
-          }
-        ]
-      }
-    ]
+    firstName: 'Rachel'
   },
   {
     username: 'kelly_feline',
     email: 'kelly@test.com',
-    firstName: 'Kelly',
-    cats: [
-      {
-        name: 'Sparkle',
-        breed: 'Abyssinian',
-        age: '2 years',
-        sex: 'Female',
-        personality: 'Athletic and agile, loves to show off her acrobatic skills',
-        favourite_person: 'Kelly',
-        favourite_treat: 'Energy treats',
-        favourite_toy: 'Agility course',
-        favourite_word: 'Jump',
-        play_time_preference: 'High energy',
-        photos: [
-          {
-            caption: 'Sparkle attempting her triple backflip dismount 🤸‍♀️⭐',
-            searchTerm: 'abyssinian cat jumping'
-          }
-        ]
-      }
-    ]
+    firstName: 'Kelly'
   },
   {
     username: 'lauren_meow',
     email: 'lauren@test.com',
-    firstName: 'Lauren',
-    cats: [
-      {
-        name: 'Cookie',
-        breed: 'Exotic Shorthair',
-        age: '3 years',
-        sex: 'Female',
-        personality: 'Sweet and gentle, loves to be pampered',
-        favourite_person: 'Lauren',
-        favourite_treat: 'Cookie treats',
-        favourite_toy: 'Soft brush',
-        favourite_word: 'Sweet',
-        play_time_preference: 'Gentle play',
-        photos: [
-          {
-            caption: 'Cookie\'s spa day face mask is working wonders! 🥒✨',
-            searchTerm: 'exotic shorthair cat cute'
-          }
-        ]
-      }
-    ]
+    firstName: 'Lauren'
   },
   {
     username: 'stephanie_paws',
     email: 'stephanie@test.com',
-    firstName: 'Stephanie',
-    cats: [
-      {
-        name: 'Ziggy',
-        breed: 'Devon Rex',
-        age: '1 year',
-        sex: 'Male',
-        personality: 'Quirky and unique, marches to the beat of his own drum',
-        favourite_person: 'Stephanie',
-        favourite_treat: 'Weird treats',
-        favourite_toy: 'Unusual objects',
-        favourite_word: 'Different',
-        play_time_preference: 'Unpredictable',
-        photos: [
-          {
-            caption: 'Ziggy being his wonderfully weird self as usual 🤪💫',
-            searchTerm: 'devon rex cat quirky'
-          }
-        ]
-      }
-    ]
+    firstName: 'Stephanie'
   }
 ]
 
-// Function to download image from Pexels
-async function downloadImage(searchTerm, filename) {
+// Cat breeds for realistic profiles
+const catBreeds = [
+  'Domestic Shorthair', 'Domestic Longhair', 'Maine Coon', 'Persian', 'Siamese',
+  'British Shorthair', 'Ragdoll', 'Bengal', 'Russian Blue', 'Scottish Fold',
+  'Abyssinian', 'American Shorthair', 'Oriental', 'Birman', 'Burmese',
+  'Norwegian Forest Cat', 'Turkish Angora', 'Exotic Shorthair', 'Devon Rex',
+  'Cornish Rex', 'Manx', 'Munchkin', 'Sphynx', 'Tonkinese', 'Bombay'
+]
+
+// Function to get a random item from an array
+function getRandomItem(array) {
+  return array[Math.floor(Math.random() * array.length)]
+}
+
+// Function to download image from URL
+async function downloadImage(imageUrl, filename) {
   try {
-    // Using Pexels API for high-quality cat photos
-    const pexelsApiKey = 'YOUR_PEXELS_API_KEY' // You'll need to get this from pexels.com
-    
-    // For now, we'll use direct URLs to known good cat photos from Pexels
-    const catPhotoUrls = [
-      'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/416160/pexels-photo-416160.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1170986/pexels-photo-1170986.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/2071882/pexels-photo-2071882.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1741205/pexels-photo-1741205.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1056251/pexels-photo-1056251.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1643457/pexels-photo-1643457.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/2194261/pexels-photo-2194261.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1276553/pexels-photo-1276553.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1404819/pexels-photo-1404819.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1314550/pexels-photo-1314550.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1571076/pexels-photo-1571076.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1183434/pexels-photo-1183434.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1444321/pexels-photo-1444321.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1661535/pexels-photo-1661535.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1687831/pexels-photo-1687831.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/1741206/pexels-photo-1741206.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/2061057/pexels-photo-2061057.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/2173872/pexels-photo-2173872.jpeg?auto=compress&cs=tinysrgb&w=800',
-      'https://images.pexels.com/photos/2361952/pexels-photo-2361952.jpeg?auto=compress&cs=tinysrgb&w=800'
-    ]
-    
-    // Get a random photo URL
-    const randomIndex = Math.floor(Math.random() * catPhotoUrls.length)
-    const imageUrl = catPhotoUrls[randomIndex]
-    
-    console.log(`Downloading image for ${filename}...`)
+    console.log(`Downloading image: ${filename}...`)
     
     const response = await fetch(imageUrl)
     if (!response.ok) {
@@ -633,7 +300,7 @@ async function createUserAccount(userData) {
       email_confirm: true,
       user_metadata: {
         username: userData.username,
-        is_demo_account: true // Tag for easy removal later
+        is_demo_account: true
       }
     })
     
@@ -666,24 +333,36 @@ async function createUserAccount(userData) {
 }
 
 // Function to create cat profile
-async function createCatProfile(userId, catData) {
+async function createCatProfile(userId, catName, breed) {
   try {
-    console.log(`Creating cat profile for ${catData.name}...`)
+    console.log(`Creating cat profile for ${catName}...`)
+    
+    const ages = ['6 months', '1 year', '2 years', '3 years', '4 years', '5 years', '6 years', '7 years']
+    const sexes = ['Male', 'Female']
+    const personalities = [
+      'Playful and energetic',
+      'Calm and affectionate',
+      'Independent and curious',
+      'Social and friendly',
+      'Mischievous and clever',
+      'Gentle and sweet',
+      'Adventurous and bold',
+      'Lazy and cuddly'
+    ]
     
     const { data, error } = await supabase
       .from('cat_profiles')
       .insert([{
         user_id: userId,
-        name: catData.name,
-        breed: catData.breed,
-        age: catData.age,
-        sex: catData.sex,
-        personality: catData.personality,
-        favourite_person: catData.favourite_person,
-        favourite_treat: catData.favourite_treat,
-        favourite_toy: catData.favourite_toy,
-        favourite_word: catData.favourite_word,
-        play_time_preference: catData.play_time_preference
+        name: catName,
+        breed: breed,
+        age: getRandomItem(ages),
+        sex: getRandomItem(sexes),
+        personality: getRandomItem(personalities),
+        favourite_treat: getRandomItem(['Tuna', 'Salmon', 'Chicken treats', 'Catnip', 'Freeze-dried treats']),
+        favourite_toy: getRandomItem(['Feather wand', 'Laser pointer', 'Catnip mouse', 'Ball', 'String']),
+        favourite_word: getRandomItem(['Treats', 'Outside', 'Play', 'Food', 'Mama']),
+        play_time_preference: getRandomItem(['Morning', 'Afternoon', 'Evening', 'Night', 'Anytime'])
       }])
       .select()
       .single()
@@ -692,22 +371,22 @@ async function createCatProfile(userId, catData) {
       throw error
     }
     
-    console.log(`Created cat profile: ${catData.name} (${data.id})`)
+    console.log(`Created cat profile: ${catName} (${data.id})`)
     return data.id
   } catch (error) {
-    console.error(`Error creating cat profile for ${catData.name}:`, error)
+    console.error(`Error creating cat profile for ${catName}:`, error)
     return null
   }
 }
 
 // Function to create cat photo
-async function createCatPhoto(userId, catProfileId, photoData, catName) {
+async function createCatPhoto(userId, catProfileId, catName, imageUrl, caption) {
   try {
     console.log(`Creating photo for ${catName}...`)
     
     // Download image
     const filename = `${catName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}.jpg`
-    const imagePath = await downloadImage(photoData.searchTerm, filename)
+    const imagePath = await downloadImage(imageUrl, filename)
     
     if (!imagePath) {
       console.error(`Failed to download image for ${catName}`)
@@ -715,9 +394,9 @@ async function createCatPhoto(userId, catProfileId, photoData, catName) {
     }
     
     // Upload to Supabase
-    const imageUrl = await uploadImageToSupabase(imagePath, filename, userId)
+    const uploadedImageUrl = await uploadImageToSupabase(imagePath, filename, userId)
     
-    if (!imageUrl) {
+    if (!uploadedImageUrl) {
       console.error(`Failed to upload image for ${catName}`)
       return null
     }
@@ -728,8 +407,8 @@ async function createCatPhoto(userId, catProfileId, photoData, catName) {
       .insert([{
         user_id: userId,
         name: catName,
-        caption: photoData.caption,
-        image_url: imageUrl,
+        caption: caption,
+        image_url: uploadedImageUrl,
         cat_profile_id: catProfileId
       }])
       .select()
@@ -742,7 +421,7 @@ async function createCatPhoto(userId, catProfileId, photoData, catName) {
     // Clean up temp file
     fs.unlinkSync(imagePath)
     
-    console.log(`Created photo for ${catName}: ${photoData.caption}`)
+    console.log(`Created photo for ${catName}: ${caption}`)
     return data.id
   } catch (error) {
     console.error(`Error creating photo for ${catName}:`, error)
@@ -769,7 +448,7 @@ async function createReactions(catIds, userIds) {
           user_id: userId,
           cat_id: catId,
           emoji_type: randomEmoji,
-          created_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() // Random time in last week
+          created_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
         })
       }
     }
@@ -796,33 +475,47 @@ async function createReactions(catIds, userIds) {
 // Main seeding function
 async function seedDatabase() {
   try {
-    console.log('🌱 Starting database seeding...')
+    console.log('🌱 Starting database seeding with real cat photos...')
     
     const userIds = []
     const catIds = []
     
     // Create users and their cats
-    for (const userData of demoUsers) {
+    for (let i = 0; i < demoUsers.length; i++) {
+      const userData = demoUsers[i]
       const userId = await createUserAccount(userData)
       if (!userId) continue
       
       userIds.push(userId)
       
-      // Create cat profiles and photos for this user
-      for (const catData of userData.cats) {
-        const catProfileId = await createCatProfile(userId, catData)
+      // Create 1-3 cat profiles per user
+      const numCats = Math.floor(Math.random() * 3) + 1
+      
+      for (let j = 0; j < numCats; j++) {
+        const catName = getRandomItem(catNames)
+        const breed = getRandomItem(catBreeds)
+        
+        const catProfileId = await createCatProfile(userId, catName, breed)
         if (!catProfileId) continue
         
-        // Create photos for this cat
-        for (const photoData of catData.photos) {
-          const catId = await createCatPhoto(userId, catProfileId, photoData, catData.name)
+        // Create 1-3 photos per cat
+        const numPhotos = Math.floor(Math.random() * 3) + 1
+        
+        for (let k = 0; k < numPhotos; k++) {
+          const imageUrl = getRandomItem(catPhotoUrls)
+          const caption = getRandomItem(catCaptions)
+          
+          const catId = await createCatPhoto(userId, catProfileId, catName, imageUrl, caption)
           if (catId) {
             catIds.push(catId)
           }
+          
+          // Small delay between photos
+          await new Promise(resolve => setTimeout(resolve, 500))
         }
       }
       
-      // Add delay to avoid rate limiting
+      // Add delay between users to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000))
     }
     
@@ -835,6 +528,17 @@ async function seedDatabase() {
     console.log(`Created ${userIds.length} users with ${catIds.length} cat photos`)
     console.log('All demo accounts use password: Testing01!')
     console.log('Demo accounts are tagged with is_demo_account: true for easy removal')
+    
+    // Clean up temp directory
+    const tempDir = path.join(__dirname, 'temp_images')
+    if (fs.existsSync(tempDir)) {
+      const files = fs.readdirSync(tempDir)
+      for (const file of files) {
+        fs.unlinkSync(path.join(tempDir, file))
+      }
+      fs.rmdirSync(tempDir)
+      console.log('🧹 Cleaned up temporary files')
+    }
     
   } catch (error) {
     console.error('❌ Error during database seeding:', error)
