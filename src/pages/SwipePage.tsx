@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { RefreshCw, BarChart3, Info } from 'lucide-react'
+import { RefreshCw, BarChart3, Info, AlertCircle } from 'lucide-react'
 import SwipeCard from '../components/SwipeCard'
 import EmojiPicker from '../components/EmojiPicker'
 import { swipeService, EnhancedCat, INTERACTION_TYPES } from '../lib/swipeService'
@@ -31,6 +31,8 @@ export default function SwipePage() {
         await swipeService.startNewSession(user.id)
       }
 
+      console.log('Fetching cats for swipe...')
+
       // Always request exactly 20 cats with smart prioritization
       const randomizedCats = await swipeService.getRandomizedCats(
         user.id,
@@ -38,8 +40,16 @@ export default function SwipePage() {
         true  // Use smart prioritization
       )
 
-      setCats(randomizedCats)
-      setCurrentIndex(0)
+      console.log(`Received ${randomizedCats.length} cats`)
+
+      if (randomizedCats.length === 0) {
+        setError('No cat photos available. Please check back later or try uploading some cats!')
+        setCats([])
+      } else {
+        setCats(randomizedCats)
+        setCurrentIndex(0)
+        console.log(`Loaded ${randomizedCats.length} cats for swiping`)
+      }
 
       // Load user stats and priority breakdown
       const [stats, priorities] = await Promise.all([
@@ -50,17 +60,9 @@ export default function SwipePage() {
       setUserStats(stats)
       setPriorityStats(priorities)
 
-      console.log(`Loaded ${randomizedCats.length} cats with smart prioritization`)
-      if (randomizedCats.length > 0) {
-        console.log('Priority distribution:', randomizedCats.reduce((acc, cat) => {
-          acc[cat.priority_level || 'unknown'] = (acc[cat.priority_level || 'unknown'] || 0) + 1
-          return acc
-        }, {} as Record<string, number>))
-      }
-
     } catch (error: any) {
       console.error('Error fetching cats:', error)
-      setError('Failed to load cats. Please try again.')
+      setError('Failed to load cats. Please try refreshing the page.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -72,6 +74,7 @@ export default function SwipePage() {
     if (!user || currentIndex < cats.length - 5) return // Load when 5 cats remaining
 
     try {
+      console.log('Loading more cats...')
       const moreCats = await swipeService.getRandomizedCats(
         user.id,
         20, // Always load 20 more cats
@@ -222,8 +225,20 @@ export default function SwipePage() {
       <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center pb-20 md:pb-0 md:pl-72">
         <div className="card-cute p-8 max-w-md">
           <div className="text-8xl mb-6">😿</div>
-          <h2 className="text-2xl font-bold text-cute-primary mb-4">Oops! Something went wrong</h2>
+          <h2 className="text-2xl font-bold text-cute-primary mb-4">No Cats Available</h2>
           <p className="text-cute-secondary mb-6 leading-relaxed">{error}</p>
+          
+          {isDemoMode && (
+            <div className="mb-6 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+                <p className="text-yellow-800 text-sm">
+                  Demo Mode: Connect to Supabase and run the seeding script to populate with cat photos.
+                </p>
+              </div>
+            </div>
+          )}
+          
           <button
             onClick={() => fetchCats(true)}
             className="btn-cute hover-bounce flex items-center space-x-2"

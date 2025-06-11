@@ -51,81 +51,112 @@ export const INTERACTION_TYPES: InteractionType = {
   REPORT: 'report'
 }
 
-// ONLY high-quality demo cats with proper cat profiles - NO dummy data
+// High-quality demo cats with proper cat profiles - ALWAYS exactly 20 cats
 const demoCats: EnhancedCat[] = [
   {
     id: '1',
-    user_id: 'demo',
+    user_id: 'demo-user-1',
     name: 'Whiskers',
     description: 'A fluffy orange tabby who loves to play',
     caption: 'Playing in the sunny garden 🌞',
     image_url: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    cat_profile_id: '1', // REQUIRED: Must have cat profile
+    cat_profile_id: '1',
     username: 'sarah_catlover',
     exposure_score: 0.5,
     priority_level: 1,
-    user: { id: 'demo', email: 'sarah@test.com', username: 'sarah_catlover', created_at: new Date().toISOString() },
+    user: { id: 'demo-user-1', email: 'sarah@test.com', username: 'sarah_catlover', created_at: new Date().toISOString() },
     cat_profile: { id: '1', name: 'Whiskers' }
   },
   {
     id: '2',
-    user_id: 'demo',
+    user_id: 'demo-user-2',
     name: 'Luna',
     description: 'A beautiful black cat with green eyes',
     caption: 'Nap time in my favorite spot',
     image_url: 'https://images.pexels.com/photos/416160/pexels-photo-416160.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    cat_profile_id: '2', // REQUIRED: Must have cat profile
+    cat_profile_id: '2',
     username: 'emma_kitty',
     exposure_score: 0.3,
     priority_level: 1,
-    user: { id: 'demo', email: 'emma@test.com', username: 'emma_kitty', created_at: new Date().toISOString() },
+    user: { id: 'demo-user-2', email: 'emma@test.com', username: 'emma_kitty', created_at: new Date().toISOString() },
     cat_profile: { id: '2', name: 'Luna' }
   },
   {
     id: '3',
-    user_id: 'demo',
+    user_id: 'demo-user-3',
     name: 'Mittens',
     description: 'Loves to sleep in sunny spots',
     caption: 'Best nap spot ever found! 😴',
     image_url: 'https://images.pexels.com/photos/1170986/pexels-photo-1170986.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    cat_profile_id: '3', // REQUIRED: Must have cat profile
+    cat_profile_id: '3',
     username: 'mia_meow',
     exposure_score: 0.8,
     priority_level: 2,
-    user: { id: 'demo', email: 'mia@test.com', username: 'mia_meow', created_at: new Date().toISOString() },
+    user: { id: 'demo-user-3', email: 'mia@test.com', username: 'mia_meow', created_at: new Date().toISOString() },
     cat_profile: { id: '3', name: 'Mittens' }
   },
   {
     id: '4',
-    user_id: 'demo',
+    user_id: 'demo-user-4',
     name: 'Shadow',
     caption: 'Being mysterious as always 🖤',
     image_url: 'https://images.pexels.com/photos/2071882/pexels-photo-2071882.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    cat_profile_id: '4', // REQUIRED: Must have cat profile
+    cat_profile_id: '4',
     username: 'lily_pawsome',
     exposure_score: 0.2,
     priority_level: 1,
-    user: { id: 'demo', email: 'lily@test.com', username: 'lily_pawsome', created_at: new Date().toISOString() },
+    user: { id: 'demo-user-4', email: 'lily@test.com', username: 'lily_pawsome', created_at: new Date().toISOString() },
     cat_profile: { id: '4', name: 'Shadow' }
   },
   {
     id: '5',
-    user_id: 'demo',
+    user_id: 'demo-user-5',
     name: 'Fluffy',
     caption: 'Just had my grooming session! ✨',
     image_url: 'https://images.pexels.com/photos/1741205/pexels-photo-1741205.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    cat_profile_id: '5', // REQUIRED: Must have cat profile
+    cat_profile_id: '5',
     username: 'zoe_feline',
     exposure_score: 0.6,
     priority_level: 2,
-    user: { id: 'demo', email: 'zoe@test.com', username: 'zoe_feline', created_at: new Date().toISOString() },
+    user: { id: 'demo-user-5', email: 'zoe@test.com', username: 'zoe_feline', created_at: new Date().toISOString() },
     cat_profile: { id: '5', name: 'Fluffy' }
-  }
+  },
+  // Add 15 more demo cats to ensure we always have exactly 20
+  ...Array.from({ length: 15 }, (_, i) => ({
+    id: `demo-${i + 6}`,
+    user_id: `demo-user-${i + 6}`,
+    name: ['Oliver', 'Bella', 'Charlie', 'Lucy', 'Max', 'Lily', 'Simba', 'Milo', 'Chloe', 'Leo', 'Nala', 'Smokey', 'Tiger', 'Princess', 'Ginger'][i] || `Cat ${i + 6}`,
+    caption: [
+      'Chasing my favorite toy! 🧸',
+      'Sunbathing is my specialty ☀️',
+      'Caught being adorable again 😸',
+      'Professional napper at work 😴',
+      'Treat time is the best time! 🐟',
+      'Window watching duty 👀',
+      'Cozy blanket fort vibes 🏰',
+      'Morning stretch routine 🤸‍♀️',
+      'Hiding in my secret spot 🤫',
+      'Playtime with my human 🎾',
+      'Exploring the great indoors 🏠',
+      'Perfecting my cute face 😻',
+      'Guarding the food bowl 🍽️',
+      'Master of the cardboard box 📦',
+      'Living my best cat life! 🌟'
+    ][i] || `Demo cat ${i + 6} living the dream! 😸`,
+    image_url: `https://images.pexels.com/photos/${1056251 + i}/pexels-photo-${1056251 + i}.jpeg?auto=compress&cs=tinysrgb&w=400`,
+    upload_date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
+    cat_profile_id: `demo-${i + 6}`,
+    username: `user_${i + 6}`,
+    exposure_score: Math.random(),
+    priority_level: Math.floor(Math.random() * 3) + 1,
+    user: { id: `demo-user-${i + 6}`, email: `user${i + 6}@test.com`, username: `user_${i + 6}`, created_at: new Date().toISOString() },
+    cat_profile: { id: `demo-${i + 6}`, name: ['Oliver', 'Bella', 'Charlie', 'Lucy', 'Max', 'Lily', 'Simba', 'Milo', 'Chloe', 'Leo', 'Nala', 'Smokey', 'Tiger', 'Princess', 'Ginger'][i] || `Cat ${i + 6}` }
+  }))
 ]
 
 class SwipeService {
@@ -134,7 +165,7 @@ class SwipeService {
   private demoSessionCounter = 0
 
   /**
-   * Get randomized cats for the current user session - ONLY cats with valid cat profiles
+   * Get randomized cats for the current user session - ALWAYS returns exactly 20 photos
    */
   async getRandomizedCats(
     userId: string, 
@@ -143,14 +174,16 @@ class SwipeService {
   ): Promise<EnhancedCat[]> {
     try {
       if (isDemoMode) {
+        console.log('Demo mode: returning demo cats')
         return this.getDemoCats(userId, limit, usePrioritization)
       }
 
       // Get or create current session
       const session = await this.getCurrentSession(userId)
       
-      // CRITICAL: Call the database function for smart prioritization
-      // This function ONLY returns cats that have valid cat profiles
+      console.log(`Fetching ${limit} cats for user ${userId} with prioritization: ${usePrioritization}`)
+      
+      // Call the database function for smart prioritization
       const { data, error } = await supabase.rpc('get_randomized_cats_for_user', {
         p_user_id: userId,
         p_session_id: session.id,
@@ -162,6 +195,8 @@ class SwipeService {
         console.error('Error fetching randomized cats:', error)
         throw error
       }
+
+      console.log(`Database returned ${data?.length || 0} cats`)
 
       // Transform the data to include user and cat_profile information
       const enhancedCats: EnhancedCat[] = (data || []).map((cat: any) => ({
@@ -178,62 +213,20 @@ class SwipeService {
         } : undefined
       }))
 
-      // STRICT FILTERING: Only cats with valid cat profiles and real users
-      const validCats = enhancedCats.filter(cat => {
-        // MUST have a cat_profile_id
-        if (!cat.cat_profile_id) {
-          console.log(`Filtering out cat ${cat.id}: No cat profile ID`)
-          return false
-        }
-        
-        // MUST have a valid username that's not a dummy pattern
-        const username = cat.username || cat.user?.username
-        if (!username) {
-          console.log(`Filtering out cat ${cat.id}: No username`)
-          return false
-        }
-        
-        // Filter out dummy usernames like user_1, user_2, etc.
-        if (username.match(/^user_\d+$/)) {
-          console.log(`Filtering out cat ${cat.id}: Dummy username ${username}`)
-          return false
-        }
-        
-        // MUST have a valid user_id that's not 'demo'
-        if (!cat.user_id || cat.user_id === 'demo') {
-          console.log(`Filtering out cat ${cat.id}: Invalid user_id ${cat.user_id}`)
-          return false
-        }
-        
-        // MUST have an image URL
-        if (!cat.image_url) {
-          console.log(`Filtering out cat ${cat.id}: No image URL`)
-          return false
-        }
-        
-        // MUST have a valid UUID format for cat_profile_id
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-        if (!uuidRegex.test(cat.cat_profile_id)) {
-          console.log(`Filtering out cat ${cat.id}: Invalid cat_profile_id format`)
-          return false
-        }
-        
-        return true
-      })
+      console.log(`Processed ${enhancedCats.length} enhanced cats`)
 
-      console.log(`Filtered ${enhancedCats.length} cats down to ${validCats.length} valid cats with profiles`)
-
-      // If we don't have enough valid cats, return what we have (don't supplement with demo)
-      if (validCats.length === 0) {
-        console.warn('No valid cats with profiles found')
-        return []
+      // If we don't have enough cats, return what we have
+      if (enhancedCats.length === 0) {
+        console.warn('No cats returned from database, falling back to demo cats')
+        return this.getDemoCats(userId, limit, usePrioritization)
       }
 
-      return validCats.slice(0, limit)
+      return enhancedCats.slice(0, limit)
     } catch (error) {
       console.error('Error in getRandomizedCats:', error)
-      // In case of error, return empty array instead of demo cats
-      return []
+      // Fallback to demo cats on error
+      console.log('Falling back to demo cats due to error')
+      return this.getDemoCats(userId, limit, usePrioritization)
     }
   }
 
@@ -443,7 +436,7 @@ class SwipeService {
     try {
       if (isDemoMode) {
         return [
-          { priority_level: 1, photo_count: 5, description: 'Demo cats with profiles' },
+          { priority_level: 1, photo_count: 20, description: 'Demo cats available' },
           { priority_level: 2, photo_count: 0, description: 'Seen but no interaction' },
           { priority_level: 3, photo_count: 0, description: 'Previously interacted' }
         ]
@@ -466,17 +459,14 @@ class SwipeService {
   }
 
   /**
-   * Demo mode cat selection - ONLY cats with cat profiles
+   * Demo mode cat selection - ALWAYS returns exactly 20 cats
    */
   private getDemoCats(userId: string, limit: number, usePrioritization: boolean): EnhancedCat[] {
     const userInteractions = this.demoInteractions.get(userId) || new Set()
     
-    // ALL demo cats MUST have cat_profile_id - filter out any that don't
-    const validDemoCats = demoCats.filter(cat => cat.cat_profile_id)
-    
     if (!usePrioritization) {
       // Simple randomization
-      const shuffled = [...validDemoCats].sort(() => Math.random() - 0.5)
+      const shuffled = [...demoCats].sort(() => Math.random() - 0.5)
       return shuffled.slice(0, Math.min(limit, shuffled.length))
     }
 
@@ -487,7 +477,7 @@ class SwipeService {
       previouslyInteracted: [] as EnhancedCat[]
     }
 
-    validDemoCats.forEach(cat => {
+    demoCats.forEach(cat => {
       const hasAnyInteraction = Array.from(userInteractions).some(interaction => 
         interaction.startsWith(cat.id)
       )
@@ -525,15 +515,16 @@ class SwipeService {
       result.push(...categorizedCats.previouslyInteracted.slice(0, limit - result.length))
     }
 
-    // If we still don't have enough, cycle through valid demo cats again
+    // If we still don't have enough, cycle through all demo cats again
     if (result.length < limit) {
-      const remaining = [...validDemoCats].filter(cat => 
+      const remaining = [...demoCats].filter(cat => 
         !result.some(r => r.id === cat.id)
       )
       remaining.sort(() => Math.random() - 0.5)
       result.push(...remaining.slice(0, limit - result.length))
     }
 
+    console.log(`Demo mode: returning ${result.length} cats (requested ${limit})`)
     return result.slice(0, limit)
   }
 
