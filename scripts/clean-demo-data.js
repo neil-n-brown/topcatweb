@@ -52,7 +52,7 @@ if (supabaseServiceKey) {
 
 if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
   console.error('\n❌ Missing Supabase configuration.')
-  console.error('Please ensure you have a .env file with:')
+  console.error('Please ensure you have a .env file with ALL THREE required keys:')
   console.error('VITE_SUPABASE_URL=your_supabase_url')
   console.error('VITE_SUPABASE_ANON_KEY=your_supabase_anon_key')
   console.error('SUPABASE_SERVICE_ROLE_KEY=your_service_role_key')
@@ -63,6 +63,8 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
   })
   console.error('')
   console.error('Note: You need BOTH the anon key AND the service role key!')
+  console.error('- ANON KEY: For basic API access')
+  console.error('- SERVICE ROLE KEY: For admin operations (deleting users)')
   process.exit(1)
 }
 
@@ -100,19 +102,20 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     fetch: (url, options = {}) => {
       // Add timeout and better error handling to fetch requests
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 45000) // Increased to 45 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 45000) // 45 second timeout
       
       return fetch(url, {
         ...options,
         signal: controller.signal,
-        // Add additional headers for better reliability
         headers: {
           ...options.headers,
           'Connection': 'keep-alive',
           'Keep-Alive': 'timeout=30',
-          // Ensure proper authorization header
+          // Use service role key for authorization (required for admin operations)
           'Authorization': `Bearer ${supabaseServiceKey}`,
-          'apikey': supabaseServiceKey
+          // Also include anon key as apikey header (required for API access)
+          'apikey': supabaseAnonKey,
+          'Content-Type': 'application/json'
         }
       }).finally(() => {
         clearTimeout(timeoutId)
@@ -230,6 +233,9 @@ async function safeDelete(tableName, deleteQuery, description, maxRetries = 8) {
 async function testConnection() {
   try {
     console.log('🔗 Testing Supabase connection...')
+    console.log(`📡 Using URL: ${supabaseUrl}`)
+    console.log(`🔑 Using anon key: ${supabaseAnonKey.substring(0, 20)}...`)
+    console.log(`🔐 Using service key: ${supabaseServiceKey.substring(0, 20)}...`)
     
     // Use a simple query with extended timeout
     const { data, error } = await Promise.race([
@@ -241,6 +247,10 @@ async function testConnection() {
     
     if (error) {
       console.error('❌ Connection test failed:', error.message)
+      if (error.message.includes('API key')) {
+        console.error('💡 This suggests an issue with the API keys configuration')
+        console.error('   Make sure both VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are correct')
+      }
       return false
     }
     console.log('✅ Connection test successful')
@@ -277,7 +287,7 @@ async function cleanDemoData() {
       console.error('💡 Enhanced network troubleshooting checklist:')
       console.error('   ✓ Check your internet connection stability')
       console.error('   ✓ Verify VITE_SUPABASE_URL is correct and starts with https://')
-      console.error('   ✓ Confirm VITE_SUPABASE_ANON_KEY is valid')
+      console.error('   ✓ Confirm VITE_SUPABASE_ANON_KEY is valid and not expired')
       console.error('   ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
       console.error('   ✓ Ensure Supabase project is active and not paused')
       console.error('   ✓ Check for firewall/proxy blocking connections')
@@ -328,9 +338,12 @@ async function cleanDemoData() {
         if (authError.message.includes('JWT')) {
           console.error('This indicates an invalid or expired service role key.')
         }
-        if (authError.message.includes('API key')) {
+        if (authError.message.includes('API key') || authError.message.includes('No API key')) {
           console.error('This indicates missing or invalid API key configuration.')
-          console.error('Make sure both VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are set.')
+          console.error('Make sure ALL THREE keys are set correctly:')
+          console.error('  • VITE_SUPABASE_URL (your project URL)')
+          console.error('  • VITE_SUPABASE_ANON_KEY (for API access)')
+          console.error('  • SUPABASE_SERVICE_ROLE_KEY (for admin operations)')
         }
       }
       console.error('')
@@ -340,7 +353,8 @@ async function cleanDemoData() {
       console.error('  • Anon key is missing or incorrect')
       console.error('  • Supabase project is not accessible')
       console.error('')
-      console.error('Please verify both keys in the .env file:')
+      console.error('Please verify all three keys in the .env file:')
+      console.error('  • VITE_SUPABASE_URL (project URL)')
       console.error('  • VITE_SUPABASE_ANON_KEY (for API access)')
       console.error('  • SUPABASE_SERVICE_ROLE_KEY (for admin operations)')
       process.exit(1)
