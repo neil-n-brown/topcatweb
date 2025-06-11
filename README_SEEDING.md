@@ -21,16 +21,44 @@ This directory contains scripts to populate the Top Cat app with realistic demo 
 
 3. **Run the migration:**
    ```bash
-   # From the project root
+   # From the project root (not the scripts directory)
    supabase db push
    ```
 
 ## Running the Seeder
 
+**Important:** Make sure you're in the correct directory:
+
 ```bash
+# For seeding (run from scripts directory)
 cd scripts
 npm run seed
+
+# For starting the dev server (run from project root)
+cd ..  # or cd /home/project
+npm run dev
 ```
+
+## Common Issues
+
+### "Missing script: dev" Error
+This error occurs when you try to run `npm run dev` from the wrong directory. The `dev` script is only available in the main project's `package.json`, not in the scripts folder.
+
+**Solution:**
+- To run the development server: `cd` to the project root and run `npm run dev`
+- To run seeding scripts: `cd scripts` and run `npm run seed`
+
+### Network/Fetch Failed Errors
+If you encounter "TypeError: fetch failed" or similar network errors:
+
+1. **Check Internet Connection:** Ensure stable internet connectivity
+2. **Verify Supabase URL:** Confirm `VITE_SUPABASE_URL` starts with `https://`
+3. **Check Project Status:** Ensure your Supabase project is active (not paused)
+4. **Firewall/Proxy:** Check if connections to Supabase are being blocked
+5. **Service Role Key:** Verify you're using the SERVICE ROLE KEY, not the anon key
+6. **Retry:** Network issues are often temporary - try running the script again
+
+The scripts include automatic retry logic with progressive backoff to handle temporary network issues.
 
 ## What Gets Created
 
@@ -46,7 +74,7 @@ npm run seed
 - **Variety:** Different breeds, ages, and personalities
 
 ### 20+ Cat Photos
-- **Source:** High-quality photos from Pexels
+- **Source:** High-quality photos from local files (cute_cat_01.jpg to cute_cat_20.jpg)
 - **Captions:** Funny, cute, cat-loving captions
 - **Storage:** Properly uploaded to Supabase storage
 - **Linked:** Connected to cat profiles and users
@@ -84,6 +112,35 @@ This will:
 - Clean up storage files
 - Cascade delete all related reactions and data
 
+**Note:** The cleanup script includes enhanced network error handling and will retry failed operations automatically.
+
+## Directory Structure
+
+```
+project-root/
+├── package.json          # Main project dependencies (contains "dev" script)
+├── src/                  # Application source code
+├── public/               # Static assets including cat photos
+│   ├── cute_cat_01.jpg   # Local cat photos used by seeder
+│   ├── cute_cat_02.jpg
+│   └── ...
+└── scripts/
+    ├── package.json      # Seeding script dependencies
+    ├── seed-database.js  # Main seeding script
+    ├── clean-demo-data.js # Cleanup script
+    └── .env              # Environment variables for scripts
+```
+
+## Command Reference
+
+| Command | Directory | Purpose |
+|---------|-----------|---------|
+| `npm run dev` | Project root | Start development server |
+| `npm run seed` | scripts/ | Populate database with demo data |
+| `npm run clean-demo` | scripts/ | Remove all demo data |
+| `npm install` | Project root | Install main project dependencies |
+| `npm install` | scripts/ | Install seeding script dependencies |
+
 ## Features Demonstrated
 
 The seeded data showcases:
@@ -94,32 +151,27 @@ The seeded data showcases:
 - **Leaderboard rankings** with realistic competition
 - **Social features** with user interactions
 
-## File Structure
-
-```
-scripts/
-├── package.json          # Dependencies for seeding scripts
-├── seed-database.js      # Main seeding script
-├── clean-demo-data.js    # Cleanup script
-└── temp_images/          # Temporary folder for downloaded images (auto-created)
-```
-
-## Notes
-
-- **Performance:** The script includes delays to avoid rate limiting
-- **Images:** Downloads real cat photos from Pexels (requires internet)
-- **Storage:** Images are properly uploaded to Supabase storage
-- **Cleanup:** Temp image files are automatically removed after upload
-- **Tagging:** All demo data is tagged for easy identification and removal
-- **Realistic:** Data is designed to showcase the app's full potential
-
 ## Troubleshooting
 
-1. **Missing Service Role Key:** Make sure you have the SERVICE ROLE KEY, not the anon key
-2. **Storage Errors:** Ensure the cat-photos bucket exists and has proper policies
-3. **Rate Limiting:** The script includes delays, but you may need to increase them
-4. **Image Downloads:** Requires internet connection to download from Pexels
-5. **Permissions:** Ensure your Supabase project has proper RLS policies enabled
+### Script Errors
+1. **"Missing script" errors:** Check you're in the correct directory
+2. **Network/fetch errors:** Check internet connection and Supabase configuration
+3. **Missing Service Role Key:** Ensure you have the SERVICE ROLE KEY, not the anon key
+4. **Storage Errors:** Ensure the cat-photos bucket exists and has proper policies
+5. **Missing Images:** Verify cute_cat_01.jpg through cute_cat_20.jpg exist in public/
+
+### Network Issues
+The scripts include enhanced error handling for network issues:
+- **Automatic retries** with progressive backoff
+- **Timeout protection** to prevent hanging operations
+- **Smaller batch sizes** to reduce network load
+- **Detailed error reporting** to help diagnose issues
+
+If you continue to experience network issues:
+- Try running from a different network connection
+- Check if your firewall is blocking Supabase connections
+- Ensure your Supabase project is accessible and active
+- Consider running during off-peak hours for better connectivity
 
 ## Marketing Use
 
