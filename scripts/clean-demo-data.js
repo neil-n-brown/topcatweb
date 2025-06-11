@@ -6,17 +6,14 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Debug environment variable loading
-console.log('🔍 Debugging environment variable loading...')
-console.log('Current working directory:', process.cwd())
+// Load environment variables from the correct locations only
+console.log('🔍 Loading environment variables...')
 console.log('Script directory:', __dirname)
 
-// Try to load environment variables from multiple locations with detailed logging
+// Try to load from scripts/.env first, then project root
 const envPaths = [
-  path.join(__dirname, '.env'),
-  path.join(__dirname, '..', '.env'),
-  path.join(process.cwd(), '.env'),
-  path.join(process.cwd(), 'scripts', '.env')
+  path.join(__dirname, '.env'),           // /home/project/scripts/.env
+  path.join(__dirname, '..', '.env')      // /home/project/.env
 ]
 
 console.log('🔍 Trying to load .env files from:')
@@ -34,25 +31,19 @@ envPaths.forEach((envPath, index) => {
   }
 })
 
-// Also try loading from process.env directly
-console.log('\n🔍 Checking process.env directly...')
-console.log('VITE_SUPABASE_URL exists:', !!process.env.VITE_SUPABASE_URL)
-console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
-
-// Show partial values for debugging (first 20 chars)
-if (process.env.VITE_SUPABASE_URL) {
-  console.log('VITE_SUPABASE_URL preview:', process.env.VITE_SUPABASE_URL.substring(0, 30) + '...')
-}
-if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.log('SUPABASE_SERVICE_ROLE_KEY preview:', process.env.SUPABASE_SERVICE_ROLE_KEY.substring(0, 20) + '...')
-}
-
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-console.log('\n🔍 Final variable check:')
-console.log('supabaseUrl:', supabaseUrl ? 'SET' : 'NOT SET')
-console.log('supabaseServiceKey:', supabaseServiceKey ? 'SET' : 'NOT SET')
+console.log('\n🔍 Environment variable check:')
+console.log('VITE_SUPABASE_URL exists:', !!supabaseUrl)
+console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!supabaseServiceKey)
+
+if (supabaseUrl) {
+  console.log('VITE_SUPABASE_URL preview:', supabaseUrl.substring(0, 30) + '...')
+}
+if (supabaseServiceKey) {
+  console.log('SUPABASE_SERVICE_ROLE_KEY preview:', supabaseServiceKey.substring(0, 20) + '...')
+}
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('\n❌ Missing Supabase configuration.')
@@ -85,38 +76,24 @@ try {
 }
 
 console.log('\n✅ Environment variables loaded successfully')
-console.log(`URL: ${supabaseUrl}`)
-console.log(`Service Key: ${supabaseServiceKey.substring(0, 20)}...`)
 
-// Create Supabase client with extended timeout and retry settings
+// Create Supabase client with proper configuration
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
-  },
-  global: {
-    fetch: (url, options = {}) => {
-      return fetch(url, {
-        ...options,
-        timeout: 30000, // 30 second timeout
-        headers: {
-          ...options.headers,
-          'Connection': 'keep-alive',
-        }
-      })
-    }
   }
 })
 
 // Enhanced retry function with exponential backoff
-async function safeDelete(tableName, deleteQuery, description, maxRetries = 5) {
+async function safeDelete(tableName, deleteQuery, description, maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔄 ${description}... (attempt ${attempt}/${maxRetries})`)
       
       // Add a small delay before each attempt
       if (attempt > 1) {
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000) // Exponential backoff, max 10s
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000) // Exponential backoff, max 5s
         console.log(`⏳ Waiting ${delay/1000} seconds before retry...`)
         await new Promise(resolve => setTimeout(resolve, delay))
       }
@@ -185,8 +162,8 @@ async function cleanDemoData() {
       if (connectionOk) break
       
       if (attempt < 3) {
-        console.log(`⏳ Waiting ${attempt * 3} seconds before retry...`)
-        await new Promise(resolve => setTimeout(resolve, attempt * 3000))
+        console.log(`⏳ Waiting ${attempt * 2} seconds before retry...`)
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000))
       }
     }
     
@@ -199,7 +176,6 @@ async function cleanDemoData() {
       console.error('   ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
       console.error('   ✓ Ensure Supabase project is active')
       console.error('   ✓ Check for firewall/proxy blocking connections')
-      console.error('   ✓ Verify .env file exists and is readable')
       process.exit(1)
     }
     
