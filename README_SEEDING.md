@@ -27,16 +27,22 @@ This directory contains scripts to populate the Top Cat app with realistic demo 
 
 ## Running the Seeder
 
-**Important:** Make sure you're in the correct directory:
+**CRITICAL: Directory Navigation**
+
+The most common error is running commands from the wrong directory. Follow these steps carefully:
 
 ```bash
 # For seeding (run from scripts directory)
-cd scripts
+cd /home/project/scripts
 npm run seed
 
 # For starting the dev server (run from project root)
-cd ..  # or cd /home/project
+cd /home/project
 npm run dev
+
+# For cleaning demo data (run from scripts directory)
+cd /home/project/scripts
+npm run clean-demo
 ```
 
 ## Common Issues
@@ -45,8 +51,18 @@ npm run dev
 This error occurs when you try to run `npm run dev` from the wrong directory. The `dev` script is only available in the main project's `package.json`, not in the scripts folder.
 
 **Solution:**
-- To run the development server: `cd` to the project root and run `npm run dev`
-- To run seeding scripts: `cd scripts` and run `npm run seed`
+- **To run the development server:** Navigate to the project root (`cd /home/project`) and run `npm run dev`
+- **To run seeding scripts:** Navigate to scripts directory (`cd /home/project/scripts`) and run `npm run seed`
+- **To clean demo data:** Navigate to scripts directory (`cd /home/project/scripts`) and run `npm run clean-demo`
+
+**Quick Directory Check:**
+```bash
+# Check current directory
+pwd
+
+# If you see /home/project/scripts, you can run seeding commands
+# If you see /home/project, you can run the dev server
+```
 
 ### Network/Fetch Failed Errors
 If you encounter "TypeError: fetch failed" or similar network errors:
@@ -56,9 +72,23 @@ If you encounter "TypeError: fetch failed" or similar network errors:
 3. **Check Project Status:** Ensure your Supabase project is active (not paused)
 4. **Firewall/Proxy:** Check if connections to Supabase are being blocked
 5. **Service Role Key:** Verify you're using the SERVICE ROLE KEY, not the anon key
-6. **Retry:** Network issues are often temporary - try running the script again
+6. **DNS Issues:** Try using different DNS servers (8.8.8.8, 1.1.1.1)
+7. **Corporate Network:** If on corporate network, try using a VPN
+8. **System Time:** Ensure system clock is accurate (affects SSL certificates)
+9. **Retry:** Network issues are often temporary - try running the script again
 
-The scripts include automatic retry logic with progressive backoff to handle temporary network issues.
+**Enhanced Network Troubleshooting:**
+- The scripts now include automatic retry logic with exponential backoff
+- Circuit breaker pattern prevents overwhelming failed connections
+- Smaller batch sizes reduce network load
+- Extended timeouts accommodate slower connections
+- Detailed error reporting helps diagnose specific issues
+
+**If problems persist:**
+- Try running during off-peak hours for better connectivity
+- Use a mobile hotspot to test if it's a network-specific issue
+- Check Supabase status page for service outages
+- Contact your network administrator if behind corporate firewall
 
 ## What Gets Created
 
@@ -102,7 +132,8 @@ Example accounts:
 To remove all demo data:
 
 ```bash
-cd scripts
+# IMPORTANT: Make sure you're in the scripts directory
+cd /home/project/scripts
 npm run clean-demo
 ```
 
@@ -112,34 +143,42 @@ This will:
 - Clean up storage files
 - Cascade delete all related reactions and data
 
-**Note:** The cleanup script includes enhanced network error handling and will retry failed operations automatically.
+**Enhanced Cleanup Features:**
+- **Robust Network Handling:** Automatic retries with exponential backoff
+- **Circuit Breaker:** Prevents overwhelming failed connections
+- **Smaller Batches:** Reduces network load and improves reliability
+- **Progress Tracking:** Detailed progress reporting for long operations
+- **Graceful Degradation:** Continues cleanup even if some operations fail
+- **Enhanced Error Reporting:** Better diagnostics for troubleshooting
+
+**Note:** The cleanup script now includes significantly enhanced network error handling and will automatically retry failed operations with intelligent backoff strategies.
 
 ## Directory Structure
 
 ```
-project-root/
-├── package.json          # Main project dependencies (contains "dev" script)
-├── src/                  # Application source code
-├── public/               # Static assets including cat photos
-│   ├── cute_cat_01.jpg   # Local cat photos used by seeder
+project-root/                    ← /home/project
+├── package.json                 # Main project dependencies (contains "dev" script)
+├── src/                         # Application source code
+├── public/                      # Static assets including cat photos
+│   ├── cute_cat_01.jpg         # Local cat photos used by seeder
 │   ├── cute_cat_02.jpg
 │   └── ...
-└── scripts/
-    ├── package.json      # Seeding script dependencies
-    ├── seed-database.js  # Main seeding script
-    ├── clean-demo-data.js # Cleanup script
-    └── .env              # Environment variables for scripts
+└── scripts/                     ← /home/project/scripts
+    ├── package.json             # Seeding script dependencies
+    ├── seed-database.js         # Main seeding script
+    ├── clean-demo-data.js       # Cleanup script
+    └── .env                     # Environment variables for scripts
 ```
 
 ## Command Reference
 
-| Command | Directory | Purpose |
-|---------|-----------|---------|
-| `npm run dev` | Project root | Start development server |
-| `npm run seed` | scripts/ | Populate database with demo data |
-| `npm run clean-demo` | scripts/ | Remove all demo data |
-| `npm install` | Project root | Install main project dependencies |
-| `npm install` | scripts/ | Install seeding script dependencies |
+| Command | Directory | Purpose | Full Path |
+|---------|-----------|---------|-----------|
+| `npm run dev` | Project root | Start development server | `cd /home/project && npm run dev` |
+| `npm run seed` | scripts/ | Populate database with demo data | `cd /home/project/scripts && npm run seed` |
+| `npm run clean-demo` | scripts/ | Remove all demo data | `cd /home/project/scripts && npm run clean-demo` |
+| `npm install` | Project root | Install main project dependencies | `cd /home/project && npm install` |
+| `npm install` | scripts/ | Install seeding script dependencies | `cd /home/project/scripts && npm install` |
 
 ## Features Demonstrated
 
@@ -154,24 +193,52 @@ The seeded data showcases:
 ## Troubleshooting
 
 ### Script Errors
-1. **"Missing script" errors:** Check you're in the correct directory
-2. **Network/fetch errors:** Check internet connection and Supabase configuration
-3. **Missing Service Role Key:** Ensure you have the SERVICE ROLE KEY, not the anon key
-4. **Storage Errors:** Ensure the cat-photos bucket exists and has proper policies
-5. **Missing Images:** Verify cute_cat_01.jpg through cute_cat_20.jpg exist in public/
+1. **"Missing script" errors:** 
+   - Check you're in the correct directory with `pwd`
+   - Use full paths: `cd /home/project` for dev server, `cd /home/project/scripts` for seeding
+2. **Network/fetch errors:** 
+   - Check internet connection stability
+   - Verify Supabase configuration
+   - Try running during off-peak hours
+   - Use VPN if behind corporate firewall
+3. **Missing Service Role Key:** 
+   - Ensure you have the SERVICE ROLE KEY, not the anon key
+   - Check .env file exists in correct location
+4. **Storage Errors:** 
+   - Ensure the cat-photos bucket exists and has proper policies
+   - Check storage quotas and permissions
+5. **Missing Images:** 
+   - Verify cute_cat_01.jpg through cute_cat_20.jpg exist in public/
 
-### Network Issues
-The scripts include enhanced error handling for network issues:
-- **Automatic retries** with progressive backoff
-- **Timeout protection** to prevent hanging operations
-- **Smaller batch sizes** to reduce network load
-- **Detailed error reporting** to help diagnose issues
+### Enhanced Network Error Handling
 
-If you continue to experience network issues:
-- Try running from a different network connection
-- Check if your firewall is blocking Supabase connections
-- Ensure your Supabase project is accessible and active
-- Consider running during off-peak hours for better connectivity
+The scripts now include comprehensive network error handling:
+
+**Automatic Retries:**
+- Exponential backoff with jitter to prevent thundering herd
+- Circuit breaker pattern to prevent overwhelming failed connections
+- Progressive delays that increase with consecutive failures
+- Maximum retry limits to prevent infinite loops
+
+**Network Resilience:**
+- Extended timeouts for slower connections
+- Smaller batch sizes to reduce network load
+- Connection testing before major operations
+- Graceful degradation when some operations fail
+
+**Error Classification:**
+- Distinguishes between retryable network errors and permanent failures
+- Provides specific guidance based on error type
+- Enhanced logging for better troubleshooting
+
+**If you continue to experience network issues:**
+- **Different Network:** Try running from a different network connection
+- **VPN:** Use a VPN if corporate firewall is blocking Supabase
+- **DNS:** Try different DNS servers (8.8.8.8, 1.1.1.1)
+- **Time:** Ensure system clock is accurate (affects SSL certificates)
+- **Status:** Check Supabase status page for service outages
+- **Peak Hours:** Run during off-peak hours for better connectivity
+- **Mobile Hotspot:** Test with mobile data to isolate network issues
 
 ## Marketing Use
 
@@ -181,3 +248,14 @@ This seeded data is perfect for:
 - **Feature showcases** demonstrating all app capabilities
 - **User testing** with pre-populated content
 - **Investor presentations** showing app potential
+
+## Performance Optimization
+
+The scripts are optimized for reliability over speed:
+- **Small Batches:** Reduces memory usage and network load
+- **Progressive Delays:** Prevents overwhelming the database
+- **Circuit Breakers:** Automatically backs off when errors occur
+- **Timeout Protection:** Prevents hanging operations
+- **Resource Cleanup:** Properly closes connections and clears timeouts
+
+This approach ensures the scripts work reliably even on slower or unstable network connections.

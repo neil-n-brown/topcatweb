@@ -77,7 +77,7 @@ try {
 
 console.log('\n✅ Environment variables loaded successfully')
 
-// Create Supabase client with improved configuration for better network handling
+// Create Supabase client with enhanced configuration for better network handling
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
@@ -87,11 +87,17 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     fetch: (url, options = {}) => {
       // Add timeout and better error handling to fetch requests
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 45000) // Increased to 45 second timeout
       
       return fetch(url, {
         ...options,
-        signal: controller.signal
+        signal: controller.signal,
+        // Add additional headers for better reliability
+        headers: {
+          ...options.headers,
+          'Connection': 'keep-alive',
+          'Keep-Alive': 'timeout=30'
+        }
       }).finally(() => {
         clearTimeout(timeoutId)
       })
@@ -99,23 +105,36 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
-// Enhanced retry function with better network error handling
-async function safeDelete(tableName, deleteQuery, description, maxRetries = 5) {
+// Enhanced retry function with exponential backoff and circuit breaker pattern
+async function safeDelete(tableName, deleteQuery, description, maxRetries = 8) {
+  let consecutiveFailures = 0
+  const maxConsecutiveFailures = 3
+  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔄 ${description}... (attempt ${attempt}/${maxRetries})`)
       
-      // Add progressive delay before each attempt
+      // Circuit breaker: if we have too many consecutive failures, wait longer
+      if (consecutiveFailures >= maxConsecutiveFailures) {
+        const circuitBreakerDelay = 15000 + (consecutiveFailures * 5000)
+        console.log(`⚡ Circuit breaker activated - waiting ${circuitBreakerDelay/1000} seconds...`)
+        await new Promise(resolve => setTimeout(resolve, circuitBreakerDelay))
+      }
+      
+      // Progressive delay with jitter to avoid thundering herd
       if (attempt > 1) {
-        const delay = Math.min(2000 * Math.pow(1.5, attempt - 1), 10000) // Progressive backoff, max 10s
-        console.log(`⏳ Waiting ${delay/1000} seconds before retry...`)
+        const baseDelay = Math.min(1000 * Math.pow(2, attempt - 1), 20000) // Exponential backoff, max 20s
+        const jitter = Math.random() * 2000 // Add up to 2s random jitter
+        const delay = baseDelay + jitter
+        console.log(`⏳ Waiting ${Math.round(delay/1000)} seconds before retry...`)
         await new Promise(resolve => setTimeout(resolve, delay))
       }
       
+      // Wrap the query with additional timeout protection
       const result = await Promise.race([
         deleteQuery,
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Operation timeout')), 25000)
+          setTimeout(() => reject(new Error('Operation timeout after 40 seconds')), 40000)
         )
       ])
       
@@ -133,8 +152,11 @@ async function safeDelete(tableName, deleteQuery, description, maxRetries = 5) {
           'ECONNRESET',
           'ENOTFOUND',
           'ETIMEDOUT',
+          'ECONNREFUSED',
           'connection',
-          'socket hang up'
+          'socket hang up',
+          'aborted',
+          'cancelled'
         ]
         
         const isRetryable = retryableErrors.some(errorType => 
@@ -142,26 +164,50 @@ async function safeDelete(tableName, deleteQuery, description, maxRetries = 5) {
         )
         
         if (isRetryable && attempt < maxRetries) {
-          console.log(`🔄 Network error detected, will retry...`)
+          consecutiveFailures++
+          console.log(`🔄 Network error detected (${consecutiveFailures} consecutive), will retry...`)
           continue
         }
+        
+        consecutiveFailures++
         return false
       } else {
         console.log(`✅ ${description} completed successfully`)
+        consecutiveFailures = 0 // Reset on success
         return true
       }
     } catch (error) {
+      consecutiveFailures++
       console.error(`❌ Network error ${description.toLowerCase()}:`, error.message)
       
-      // For network errors, always retry if we have attempts left
-      if (attempt < maxRetries) {
-        console.log(`🔄 Will retry due to network error...`)
+      // Enhanced error classification
+      const networkErrors = [
+        'fetch failed',
+        'network',
+        'timeout',
+        'ECONNRESET',
+        'ENOTFOUND',
+        'ETIMEDOUT',
+        'ECONNREFUSED',
+        'aborted',
+        'cancelled',
+        'socket hang up'
+      ]
+      
+      const isNetworkError = networkErrors.some(errorType => 
+        error.message.toLowerCase().includes(errorType.toLowerCase())
+      )
+      
+      if (isNetworkError && attempt < maxRetries) {
+        console.log(`🔄 Will retry due to network error (${consecutiveFailures} consecutive failures)...`)
         continue
       }
       
       return false
     }
   }
+  
+  console.error(`❌ Failed after ${maxRetries} attempts with ${consecutiveFailures} consecutive failures`)
   return false
 }
 
@@ -169,11 +215,11 @@ async function testConnection() {
   try {
     console.log('🔗 Testing Supabase connection...')
     
-    // Use a simple query with timeout
+    // Use a simple query with extended timeout
     const { data, error } = await Promise.race([
       supabase.from('users').select('count').limit(1),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Connection test timeout')), 15000)
+        setTimeout(() => reject(new Error('Connection test timeout after 20 seconds')), 20000)
       )
     ])
     
@@ -192,17 +238,19 @@ async function testConnection() {
 async function cleanDemoData() {
   try {
     console.log('\n🧹 Starting comprehensive demo data cleanup...')
+    console.log('📍 Current working directory:', process.cwd())
+    console.log('📍 Script location:', __dirname)
     
-    // Test connection with multiple attempts and better error reporting
+    // Test connection with multiple attempts and enhanced error reporting
     let connectionOk = false
-    for (let attempt = 1; attempt <= 5; attempt++) {
-      console.log(`🔗 Connection attempt ${attempt}/5...`)
+    for (let attempt = 1; attempt <= 8; attempt++) {
+      console.log(`🔗 Connection attempt ${attempt}/8...`)
       connectionOk = await testConnection()
       if (connectionOk) break
       
-      if (attempt < 5) {
-        const delay = Math.min(3000 * attempt, 15000) // Progressive delay, max 15s
-        console.log(`⏳ Waiting ${delay/1000} seconds before retry...`)
+      if (attempt < 8) {
+        const delay = Math.min(2000 * Math.pow(1.5, attempt), 20000) // Progressive delay, max 20s
+        console.log(`⏳ Waiting ${Math.round(delay/1000)} seconds before retry...`)
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }
@@ -210,45 +258,67 @@ async function cleanDemoData() {
     if (!connectionOk) {
       console.error('❌ Cannot proceed without a working connection to Supabase')
       console.error('')
-      console.error('💡 Network troubleshooting checklist:')
-      console.error('   ✓ Check your internet connection')
+      console.error('💡 Enhanced network troubleshooting checklist:')
+      console.error('   ✓ Check your internet connection stability')
       console.error('   ✓ Verify VITE_SUPABASE_URL is correct and starts with https://')
       console.error('   ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
       console.error('   ✓ Ensure Supabase project is active and not paused')
       console.error('   ✓ Check for firewall/proxy blocking connections')
       console.error('   ✓ Try running the script from a different network')
       console.error('   ✓ Check if your ISP is blocking the connection')
+      console.error('   ✓ Verify DNS resolution is working properly')
+      console.error('   ✓ Test connection from a different device/location')
+      console.error('')
+      console.error('🔧 You can also try:')
+      console.error('   • Running the script during off-peak hours')
+      console.error('   • Using a VPN if corporate firewall is blocking')
+      console.error('   • Checking Supabase status page for outages')
       process.exit(1)
     }
     
-    // Get all demo users with better error handling
+    // Get all demo users with enhanced error handling and retries
     let authUsers, authError
-    try {
-      console.log('👥 Fetching demo users...')
-      const result = await Promise.race([
-        supabase.auth.admin.listUsers(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('List users timeout')), 20000)
-        )
-      ])
-      authUsers = result.data
-      authError = result.error
-    } catch (error) {
-      console.error('❌ Failed to list users:', error.message)
+    let userFetchAttempts = 0
+    const maxUserFetchAttempts = 5
+    
+    while (userFetchAttempts < maxUserFetchAttempts) {
+      userFetchAttempts++
+      try {
+        console.log(`👥 Fetching demo users (attempt ${userFetchAttempts}/${maxUserFetchAttempts})...`)
+        const result = await Promise.race([
+          supabase.auth.admin.listUsers(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('List users timeout after 30 seconds')), 30000)
+          )
+        ])
+        authUsers = result.data
+        authError = result.error
+        break
+      } catch (error) {
+        console.error(`❌ Failed to list users (attempt ${userFetchAttempts}):`, error.message)
+        if (userFetchAttempts < maxUserFetchAttempts) {
+          const delay = Math.min(3000 * userFetchAttempts, 15000)
+          console.log(`⏳ Waiting ${delay/1000} seconds before retry...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
+    }
+    
+    if (!authUsers || authError) {
+      console.error('❌ Could not fetch users after multiple attempts')
+      if (authError) {
+        console.error('Auth error:', authError.message)
+        if (authError.message.includes('JWT')) {
+          console.error('This indicates an invalid or expired service role key.')
+        }
+      }
+      console.error('')
       console.error('This usually means:')
       console.error('  • Network connectivity issues')
       console.error('  • Service role key is incorrect or expired')
       console.error('  • Supabase project is not accessible')
       console.error('')
       console.error('Please verify your SUPABASE_SERVICE_ROLE_KEY in the .env file.')
-      process.exit(1)
-    }
-    
-    if (authError) {
-      console.error('❌ Auth error:', authError.message)
-      if (authError.message.includes('JWT')) {
-        console.error('This indicates an invalid or expired service role key.')
-      }
       process.exit(1)
     }
     
@@ -266,59 +336,98 @@ async function cleanDemoData() {
 
     const demoUserIds = demoUsers.map(user => user.id)
     
-    // Use smaller batches and more conservative approach for better network reliability
-    const batchSize = 3 // Even smaller batches to avoid network issues
+    // Use even smaller batches and more conservative approach for maximum network reliability
+    const batchSize = 2 // Very small batches to minimize network load
+    const batchDelay = 3000 // Longer delays between batches
     
-    console.log('🗄️ Cleaning database records in very small batches for network reliability...')
+    console.log('🗄️ Cleaning database records in very small batches for maximum network reliability...')
+    console.log(`Using batch size: ${batchSize}, delay between batches: ${batchDelay/1000}s`)
     
+    // Clean up user interactions
+    console.log('\n🔄 Cleaning user interactions...')
     for (let i = 0; i < demoUserIds.length; i += batchSize) {
       const batch = demoUserIds.slice(i, i + batchSize)
-      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(demoUserIds.length/batchSize)} (${batch.length} users)`)
+      console.log(`Processing user interactions batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(demoUserIds.length/batchSize)} (${batch.length} users)`)
       
-      // Clean up user interactions for this batch
-      await safeDelete(
+      const success = await safeDelete(
         'user_interactions',
         supabase.from('user_interactions').delete().in('user_id', batch),
         `Cleaning user interactions for batch ${Math.floor(i/batchSize) + 1}`
       )
       
-      // Clean up swipe sessions for this batch
-      await safeDelete(
+      if (!success) {
+        console.warn(`⚠️ Failed to clean user interactions for batch ${Math.floor(i/batchSize) + 1}, continuing...`)
+      }
+      
+      // Longer delay between batches for network stability
+      if (i + batchSize < demoUserIds.length) {
+        console.log(`⏳ Waiting ${batchDelay/1000} seconds before next batch...`)
+        await new Promise(resolve => setTimeout(resolve, batchDelay))
+      }
+    }
+    
+    // Clean up swipe sessions
+    console.log('\n🔄 Cleaning swipe sessions...')
+    for (let i = 0; i < demoUserIds.length; i += batchSize) {
+      const batch = demoUserIds.slice(i, i + batchSize)
+      console.log(`Processing swipe sessions batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(demoUserIds.length/batchSize)} (${batch.length} users)`)
+      
+      const success = await safeDelete(
         'swipe_sessions',
         supabase.from('swipe_sessions').delete().in('user_id', batch),
         `Cleaning swipe sessions for batch ${Math.floor(i/batchSize) + 1}`
       )
       
-      // Longer delay between batches for network stability
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      if (!success) {
+        console.warn(`⚠️ Failed to clean swipe sessions for batch ${Math.floor(i/batchSize) + 1}, continuing...`)
+      }
+      
+      if (i + batchSize < demoUserIds.length) {
+        console.log(`⏳ Waiting ${batchDelay/1000} seconds before next batch...`)
+        await new Promise(resolve => setTimeout(resolve, batchDelay))
+      }
     }
     
-    // Get demo cats in smaller batches with better error handling
-    console.log('📸 Finding demo user cats...')
+    // Get demo cats in smaller batches with enhanced error handling
+    console.log('\n📸 Finding demo user cats...')
     let allDemoCats = []
     
     for (let i = 0; i < demoUserIds.length; i += batchSize) {
       const batch = demoUserIds.slice(i, i + batchSize)
       
-      try {
-        const { data: demoCats, error: catsError } = await Promise.race([
-          supabase.from('cats').select('id').in('user_id', batch),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fetch cats timeout')), 15000)
-          )
-        ])
-        
-        if (catsError) {
-          console.warn(`Warning: Could not fetch cats for batch ${Math.floor(i/batchSize) + 1}:`, catsError.message)
-        } else if (demoCats) {
-          allDemoCats.push(...demoCats)
+      let catFetchSuccess = false
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`Fetching cats for batch ${Math.floor(i/batchSize) + 1} (attempt ${attempt}/3)`)
+          const { data: demoCats, error: catsError } = await Promise.race([
+            supabase.from('cats').select('id').in('user_id', batch),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Fetch cats timeout after 20 seconds')), 20000)
+            )
+          ])
+          
+          if (catsError) {
+            console.warn(`Warning: Could not fetch cats for batch ${Math.floor(i/batchSize) + 1} (attempt ${attempt}):`, catsError.message)
+          } else if (demoCats) {
+            allDemoCats.push(...demoCats)
+            catFetchSuccess = true
+            break
+          }
+        } catch (error) {
+          console.warn(`Warning: Network error fetching cats for batch ${Math.floor(i/batchSize) + 1} (attempt ${attempt}):`, error.message)
         }
-      } catch (error) {
-        console.warn(`Warning: Network error fetching cats for batch ${Math.floor(i/batchSize) + 1}:`, error.message)
+        
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+        }
+      }
+      
+      if (!catFetchSuccess) {
+        console.warn(`⚠️ Could not fetch cats for batch ${Math.floor(i/batchSize) + 1} after 3 attempts, continuing...`)
       }
       
       // Delay between batches
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 1500))
     }
     
     if (allDemoCats.length > 0) {
@@ -326,52 +435,93 @@ async function cleanDemoData() {
       console.log(`Found ${demoCatIds.length} demo cat photos`)
       
       // Clean up cat-related data in smaller batches
-      for (let i = 0; i < demoCatIds.length; i += batchSize) {
-        const batch = demoCatIds.slice(i, i + batchSize)
+      const catBatchSize = 1 // Even smaller batches for cat operations
+      
+      console.log('\n🔄 Cleaning photo exposure data...')
+      for (let i = 0; i < demoCatIds.length; i += catBatchSize) {
+        const batch = demoCatIds.slice(i, i + catBatchSize)
         
-        await safeDelete(
+        const success = await safeDelete(
           'photo_exposure',
           supabase.from('photo_exposure').delete().in('cat_id', batch),
-          `Cleaning photo exposure for cat batch ${Math.floor(i/batchSize) + 1}`
+          `Cleaning photo exposure for cat batch ${Math.floor(i/catBatchSize) + 1}`
         )
         
-        await safeDelete(
+        if (!success) {
+          console.warn(`⚠️ Failed to clean photo exposure for cat batch ${Math.floor(i/catBatchSize) + 1}, continuing...`)
+        }
+        
+        if (i + catBatchSize < demoCatIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
+      }
+      
+      console.log('\n🔄 Cleaning cat reactions...')
+      for (let i = 0; i < demoCatIds.length; i += catBatchSize) {
+        const batch = demoCatIds.slice(i, i + catBatchSize)
+        
+        const success = await safeDelete(
           'reactions',
           supabase.from('reactions').delete().in('cat_id', batch),
-          `Cleaning reactions for cat batch ${Math.floor(i/batchSize) + 1}`
+          `Cleaning reactions for cat batch ${Math.floor(i/catBatchSize) + 1}`
         )
         
-        await safeDelete(
+        if (!success) {
+          console.warn(`⚠️ Failed to clean reactions for cat batch ${Math.floor(i/catBatchSize) + 1}, continuing...`)
+        }
+        
+        if (i + catBatchSize < demoCatIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
+      }
+      
+      console.log('\n🔄 Cleaning cat reports...')
+      for (let i = 0; i < demoCatIds.length; i += catBatchSize) {
+        const batch = demoCatIds.slice(i, i + catBatchSize)
+        
+        const success = await safeDelete(
           'reports',
           supabase.from('reports').delete().in('cat_id', batch),
-          `Cleaning reports for cat batch ${Math.floor(i/batchSize) + 1}`
+          `Cleaning reports for cat batch ${Math.floor(i/catBatchSize) + 1}`
         )
         
-        // Delay between batches
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        if (!success) {
+          console.warn(`⚠️ Failed to clean reports for cat batch ${Math.floor(i/catBatchSize) + 1}, continuing...`)
+        }
+        
+        if (i + catBatchSize < demoCatIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
       }
     }
     
-    // Clean up reactions made BY demo users (in smaller batches)
+    // Clean up reactions made BY demo users
+    console.log('\n🔄 Cleaning demo user reactions...')
     for (let i = 0; i < demoUserIds.length; i += batchSize) {
       const batch = demoUserIds.slice(i, i + batchSize)
       
-      await safeDelete(
+      const success = await safeDelete(
         'reactions',
         supabase.from('reactions').delete().in('user_id', batch),
         `Cleaning demo user reactions for batch ${Math.floor(i/batchSize) + 1}`
       )
       
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      if (!success) {
+        console.warn(`⚠️ Failed to clean demo user reactions for batch ${Math.floor(i/batchSize) + 1}, continuing...`)
+      }
+      
+      if (i + batchSize < demoUserIds.length) {
+        await new Promise(resolve => setTimeout(resolve, batchDelay))
+      }
     }
     
-    // Clean up storage files with better error handling
-    console.log('🗂️ Attempting to clean up storage files...')
+    // Clean up storage files with enhanced error handling
+    console.log('\n🗂️ Attempting to clean up storage files...')
     try {
       const { data: files, error: listError } = await Promise.race([
         supabase.storage.from('cat-photos').list(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Storage list timeout')), 15000)
+          setTimeout(() => reject(new Error('Storage list timeout after 20 seconds')), 20000)
         )
       ])
       
@@ -383,30 +533,31 @@ async function cleanDemoData() {
         if (demoFiles.length > 0) {
           console.log(`Found ${demoFiles.length} demo files to delete`)
           
-          // Delete files in very small batches
-          const fileBatchSize = 2
-          for (let i = 0; i < demoFiles.length; i += fileBatchSize) {
-            const batch = demoFiles.slice(i, i + fileBatchSize)
-            const filePaths = batch.map(file => file.name)
+          // Delete files one by one for maximum reliability
+          for (let i = 0; i < demoFiles.length; i++) {
+            const file = demoFiles[i]
             
             try {
               const { error: removeError } = await Promise.race([
-                supabase.storage.from('cat-photos').remove(filePaths),
+                supabase.storage.from('cat-photos').remove([file.name]),
                 new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('Storage remove timeout')), 15000)
+                  setTimeout(() => reject(new Error('Storage remove timeout after 15 seconds')), 15000)
                 )
               ])
               
               if (removeError) {
-                console.warn(`Warning: Could not remove file batch ${Math.floor(i/fileBatchSize) + 1}:`, removeError.message)
+                console.warn(`Warning: Could not remove file ${file.name}:`, removeError.message)
               } else {
-                console.log(`✅ Removed file batch ${Math.floor(i/fileBatchSize) + 1} (${filePaths.length} files)`)
+                console.log(`✅ Removed file: ${file.name}`)
               }
             } catch (error) {
-              console.warn(`Warning: Network error removing file batch ${Math.floor(i/fileBatchSize) + 1}:`, error.message)
+              console.warn(`Warning: Network error removing file ${file.name}:`, error.message)
             }
             
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            // Small delay between file deletions
+            if (i < demoFiles.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000))
+            }
           }
         }
       }
@@ -414,53 +565,90 @@ async function cleanDemoData() {
       console.warn('Warning: Storage cleanup failed:', storageError.message)
     }
     
-    // Delete database records (in smaller batches)
-    console.log('🗄️ Deleting database records...')
+    // Delete database records
+    console.log('\n🗄️ Deleting database records...')
     
+    console.log('\n🔄 Cleaning cat profiles...')
     for (let i = 0; i < demoUserIds.length; i += batchSize) {
       const batch = demoUserIds.slice(i, i + batchSize)
       
-      await safeDelete(
+      const success = await safeDelete(
         'cat_profiles',
         supabase.from('cat_profiles').delete().in('user_id', batch),
         `Cleaning cat profiles for batch ${Math.floor(i/batchSize) + 1}`
       )
       
-      await safeDelete(
+      if (!success) {
+        console.warn(`⚠️ Failed to clean cat profiles for batch ${Math.floor(i/batchSize) + 1}, continuing...`)
+      }
+      
+      if (i + batchSize < demoUserIds.length) {
+        await new Promise(resolve => setTimeout(resolve, batchDelay))
+      }
+    }
+    
+    console.log('\n🔄 Cleaning cat photos...')
+    for (let i = 0; i < demoUserIds.length; i += batchSize) {
+      const batch = demoUserIds.slice(i, i + batchSize)
+      
+      const success = await safeDelete(
         'cats',
         supabase.from('cats').delete().in('user_id', batch),
         `Cleaning cat photos for batch ${Math.floor(i/batchSize) + 1}`
       )
       
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      if (!success) {
+        console.warn(`⚠️ Failed to clean cat photos for batch ${Math.floor(i/batchSize) + 1}, continuing...`)
+      }
+      
+      if (i + batchSize < demoUserIds.length) {
+        await new Promise(resolve => setTimeout(resolve, batchDelay))
+      }
     }
     
-    // Delete demo user accounts (one by one for better reliability)
-    console.log('👥 Deleting demo user accounts...')
+    // Delete demo user accounts (one by one for maximum reliability)
+    console.log('\n👥 Deleting demo user accounts...')
     
     let deletedCount = 0
-    for (const user of demoUsers) {
-      try {
-        console.log(`Deleting user: ${user.email}`)
-        
-        const { error } = await Promise.race([
-          supabase.auth.admin.deleteUser(user.id),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Delete user timeout')), 15000)
-          )
-        ])
-        
-        if (error) {
-          console.error(`❌ Error deleting user ${user.email}:`, error.message)
-        } else {
-          console.log(`✅ Deleted user: ${user.email}`)
-          deletedCount++
+    for (let i = 0; i < demoUsers.length; i++) {
+      const user = demoUsers[i]
+      
+      let userDeleteSuccess = false
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`Deleting user: ${user.email} (${i + 1}/${demoUsers.length}, attempt ${attempt}/3)`)
+          
+          const { error } = await Promise.race([
+            supabase.auth.admin.deleteUser(user.id),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Delete user timeout after 20 seconds')), 20000)
+            )
+          ])
+          
+          if (error) {
+            console.error(`❌ Error deleting user ${user.email} (attempt ${attempt}):`, error.message)
+          } else {
+            console.log(`✅ Deleted user: ${user.email}`)
+            deletedCount++
+            userDeleteSuccess = true
+            break
+          }
+        } catch (error) {
+          console.error(`❌ Network error deleting user ${user.email} (attempt ${attempt}):`, error.message)
         }
         
-        // Delay between user deletions for network stability
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      } catch (error) {
-        console.error(`❌ Network error deleting user ${user.email}:`, error.message)
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+        }
+      }
+      
+      if (!userDeleteSuccess) {
+        console.warn(`⚠️ Could not delete user ${user.email} after 3 attempts, continuing...`)
+      }
+      
+      // Delay between user deletions for network stability
+      if (i < demoUsers.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1500))
       }
     }
     
@@ -479,11 +667,14 @@ async function cleanDemoData() {
       console.log('⚠️ Some operations may have failed due to network issues.')
       console.log('You can run the cleanup script again to retry any remaining items.')
       console.log('')
-      console.log('💡 Network troubleshooting tips:')
+      console.log('💡 Enhanced network troubleshooting tips:')
       console.log('   • Try running from a different network connection')
       console.log('   • Check if your firewall is blocking Supabase connections')
       console.log('   • Ensure your internet connection is stable')
       console.log('   • Consider running during off-peak hours')
+      console.log('   • Use a VPN if corporate firewall is interfering')
+      console.log('   • Check Supabase status page for service issues')
+      console.log('   • Try running the script in smaller chunks')
     } else {
       console.log('✨ All demo data has been successfully removed!')
     }
@@ -492,12 +683,15 @@ async function cleanDemoData() {
     console.error('❌ Unexpected error during cleanup:', error)
     console.log('')
     console.log('💡 This appears to be a network connectivity issue.')
-    console.log('Troubleshooting steps:')
+    console.log('Enhanced troubleshooting steps:')
     console.log('   1. Check your internet connection stability')
     console.log('   2. Try running from a different network')
     console.log('   3. Verify Supabase project is accessible')
     console.log('   4. Check for firewall/proxy blocking connections')
     console.log('   5. Run the cleanup script again when connection is stable')
+    console.log('   6. Consider using a VPN if behind corporate firewall')
+    console.log('   7. Check DNS resolution and try different DNS servers')
+    console.log('   8. Verify system time is correct (affects SSL certificates)')
   }
 }
 
