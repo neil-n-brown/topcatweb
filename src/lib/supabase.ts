@@ -213,33 +213,40 @@ export const authHelpers = {
     }
   },
   cleanupCorruptedSessions: () => {
-    // Simplified cleanup - only remove obviously corrupted data
+    // Only attempt cleanup if we're using actual localStorage
+    if (safeStorage.storageType !== 'localStorage') {
+      console.log('Skipping session cleanup - not using localStorage')
+      return
+    }
+
     try {
-      if (safeStorage.isAvailable && typeof window !== 'undefined') {
-        const keysToRemove: string[] = []
-        
-        for (let i = 0; i < window.localStorage.length; i++) {
-          const key = window.localStorage.key(i)
-          if (key && key.includes('supabase') && key.includes('auth')) {
-            try {
-              const data = window.localStorage.getItem(key)
-              if (!data || data.trim() === '' || data === 'null' || data === 'undefined') {
-                keysToRemove.push(key)
-              }
-            } catch (error) {
+      if (typeof window === 'undefined' || !window.localStorage) {
+        return
+      }
+
+      const keysToRemove: string[] = []
+      
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i)
+        if (key && key.includes('supabase') && key.includes('auth')) {
+          try {
+            const data = window.localStorage.getItem(key)
+            if (!data || data.trim() === '' || data === 'null' || data === 'undefined') {
               keysToRemove.push(key)
             }
+          } catch (error) {
+            keysToRemove.push(key)
           }
         }
-        
-        keysToRemove.forEach(key => {
-          try {
-            window.localStorage.removeItem(key)
-          } catch (error) {
-            console.warn('Error removing corrupted key:', key)
-          }
-        })
       }
+      
+      keysToRemove.forEach(key => {
+        try {
+          window.localStorage.removeItem(key)
+        } catch (error) {
+          console.warn('Error removing corrupted key:', key)
+        }
+      })
     } catch (error) {
       console.warn('Error during session cleanup:', error)
     }

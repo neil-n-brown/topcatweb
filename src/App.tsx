@@ -51,11 +51,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/auth" replace />
   }
 
-  return (
-    <StorageErrorBoundary>
-      {children}
-    </StorageErrorBoundary>
-  )
+  return <>{children}</>
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -77,11 +73,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/swipe" replace />
   }
 
-  return (
-    <StorageErrorBoundary>
-      {children}
-    </StorageErrorBoundary>
-  )
+  return <>{children}</>
 }
 
 // 404 Page Component
