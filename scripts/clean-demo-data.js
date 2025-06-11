@@ -82,148 +82,256 @@ async function cleanOrphanedPhotos() {
   try {
     console.log('🔍 Comprehensive orphaned photo cleanup...')
     
-    // 1. Find cats that reference non-existent users
-    console.log('🔍 Checking for cats with non-existent users...')
-    const { data: orphanedByUser, error: orphanedUserError } = await supabase
-      .from('cats')
-      .select('id, user_id, name, image_url, cat_profile_id')
-      .not('user_id', 'in', `(SELECT id FROM users)`)
+    // First, get all valid user IDs
+    console.log('🔍 Fetching valid user IDs...')
+    const { data: validUsers, error: usersError } = await supabase
+      .from('users')
+      .select('id')
     
-    if (orphanedUserError) {
-      console.warn('Warning: Could not check for user-orphaned cats:', orphanedUserError.message)
-    } else if (orphanedByUser && orphanedByUser.length > 0) {
-      console.log(`📸 Found ${orphanedByUser.length} cat photos with non-existent users`)
-      
-      const orphanedCatIds = orphanedByUser.map(cat => cat.id)
-      
-      // Clean up all related data for these orphaned cats
-      await safeDelete(
-        'user_interactions',
-        supabase.from('user_interactions').delete().in('cat_id', orphanedCatIds),
-        'Removing interactions for user-orphaned cats'
-      )
-      
-      await safeDelete(
-        'reactions',
-        supabase.from('reactions').delete().in('cat_id', orphanedCatIds),
-        'Removing reactions for user-orphaned cats'
-      )
-      
-      await safeDelete(
-        'photo_exposure',
-        supabase.from('photo_exposure').delete().in('cat_id', orphanedCatIds),
-        'Removing exposure records for user-orphaned cats'
-      )
-      
-      await safeDelete(
-        'reports',
-        supabase.from('reports').delete().in('cat_id', orphanedCatIds),
-        'Removing reports for user-orphaned cats'
-      )
-      
-      // Delete the orphaned cat records themselves
-      await safeDelete(
-        'cats',
-        supabase.from('cats').delete().in('id', orphanedCatIds),
-        'Removing user-orphaned cat photos from database'
-      )
-      
-      console.log(`✅ Cleaned up ${orphanedByUser.length} cats with non-existent users`)
-    } else {
-      console.log('ℹ️ No cats with non-existent users found')
+    if (usersError) {
+      console.error('❌ Could not fetch valid users:', usersError.message)
+      return
     }
     
-    // 2. Find cats that reference non-existent cat profiles (when cat_profile_id is set)
-    console.log('🔍 Checking for cats with non-existent cat profiles...')
-    const { data: orphanedByProfile, error: orphanedProfileError } = await supabase
-      .from('cats')
-      .select('id, cat_profile_id, name, image_url, user_id')
-      .not('cat_profile_id', 'is', null)
-      .not('cat_profile_id', 'in', `(SELECT id FROM cat_profiles)`)
+    const validUserIds = validUsers.map(user => user.id)
+    console.log(`📋 Found ${validUserIds.length} valid users`)
     
-    if (orphanedProfileError) {
-      console.warn('Warning: Could not check for profile-orphaned cats:', orphanedProfileError.message)
-    } else if (orphanedByProfile && orphanedByProfile.length > 0) {
-      console.log(`📸 Found ${orphanedByProfile.length} cat photos with non-existent cat profiles`)
+    // Get all valid cat profile IDs
+    console.log('🔍 Fetching valid cat profile IDs...')
+    const { data: validProfiles, error: profilesError } = await supabase
+      .from('cat_profiles')
+      .select('id')
+    
+    if (profilesError) {
+      console.error('❌ Could not fetch valid cat profiles:', profilesError.message)
+      return
+    }
+    
+    const validProfileIds = validProfiles.map(profile => profile.id)
+    console.log(`📋 Found ${validProfileIds.length} valid cat profiles`)
+    
+    // 1. Find cats that reference non-existent users
+    console.log('🔍 Checking for cats with non-existent users...')
+    const { data: allCats, error: allCatsError } = await supabase
+      .from('cats')
+      .select('id, user_id, name, image_url, cat_profile_id')
+    
+    if (allCatsError) {
+      console.warn('Warning: Could not check for user-orphaned cats:', allCatsError.message)
+    } else if (allCats && allCats.length > 0) {
+      const orphanedByUser = allCats.filter(cat => !validUserIds.includes(cat.user_id))
       
-      // For these, we have two options:
-      // Option 1: Clear the cat_profile_id (keep the photo but unlink from profile)
-      // Option 2: Delete the photo entirely if it's problematic for the swipe feature
-      
-      // Let's check if the users still exist for these cats
-      const catsWithValidUsers = []
-      const catsWithInvalidUsers = []
-      
-      for (const cat of orphanedByProfile) {
-        const { data: userExists } = await supabase
-          .from('users')
-          .select('id')
-          .eq('id', cat.user_id)
-          .single()
+      if (orphanedByUser.length > 0) {
+        console.log(`📸 Found ${orphanedByUser.length} cat photos with non-existent users`)
         
-        if (userExists) {
-          catsWithValidUsers.push(cat)
-        } else {
-          catsWithInvalidUsers.push(cat)
-        }
-      }
-      
-      // For cats with valid users, just clear the cat_profile_id
-      if (catsWithValidUsers.length > 0) {
-        const { error: updateError } = await supabase
-          .from('cats')
-          .update({ cat_profile_id: null })
-          .in('id', catsWithValidUsers.map(cat => cat.id))
+        const orphanedCatIds = orphanedByUser.map(cat => cat.id)
         
-        if (updateError) {
-          console.warn('Warning: Could not clear orphaned cat_profile_id references:', updateError.message)
-        } else {
-          console.log(`✅ Cleared ${catsWithValidUsers.length} orphaned cat profile references (kept photos)`)
-        }
-      }
-      
-      // For cats with invalid users, delete them entirely
-      if (catsWithInvalidUsers.length > 0) {
-        const invalidCatIds = catsWithInvalidUsers.map(cat => cat.id)
-        
-        // Clean up related data first
+        // Clean up all related data for these orphaned cats
         await safeDelete(
           'user_interactions',
-          supabase.from('user_interactions').delete().in('cat_id', invalidCatIds),
-          'Removing interactions for profile-orphaned cats with invalid users'
+          supabase.from('user_interactions').delete().in('cat_id', orphanedCatIds),
+          'Removing interactions for user-orphaned cats'
         )
         
         await safeDelete(
           'reactions',
-          supabase.from('reactions').delete().in('cat_id', invalidCatIds),
-          'Removing reactions for profile-orphaned cats with invalid users'
+          supabase.from('reactions').delete().in('cat_id', orphanedCatIds),
+          'Removing reactions for user-orphaned cats'
         )
         
         await safeDelete(
           'photo_exposure',
-          supabase.from('photo_exposure').delete().in('cat_id', invalidCatIds),
-          'Removing exposure records for profile-orphaned cats with invalid users'
+          supabase.from('photo_exposure').delete().in('cat_id', orphanedCatIds),
+          'Removing exposure records for user-orphaned cats'
         )
         
         await safeDelete(
           'reports',
-          supabase.from('reports').delete().in('cat_id', invalidCatIds),
-          'Removing reports for profile-orphaned cats with invalid users'
+          supabase.from('reports').delete().in('cat_id', orphanedCatIds),
+          'Removing reports for user-orphaned cats'
         )
         
+        // Delete the orphaned cat records themselves
         await safeDelete(
           'cats',
-          supabase.from('cats').delete().in('id', invalidCatIds),
-          'Removing profile-orphaned cats with invalid users'
+          supabase.from('cats').delete().in('id', orphanedCatIds),
+          'Removing user-orphaned cat photos from database'
         )
         
-        console.log(`✅ Deleted ${catsWithInvalidUsers.length} cats with both invalid profiles and users`)
+        console.log(`✅ Cleaned up ${orphanedByUser.length} cats with non-existent users`)
+      } else {
+        console.log('ℹ️ No cats with non-existent users found')
       }
-    } else {
-      console.log('ℹ️ No cats with non-existent cat profiles found')
+      
+      // 2. Find cats that reference non-existent cat profiles (when cat_profile_id is set)
+      console.log('🔍 Checking for cats with non-existent cat profiles...')
+      const orphanedByProfile = allCats.filter(cat => 
+        cat.cat_profile_id && !validProfileIds.includes(cat.cat_profile_id)
+      )
+      
+      if (orphanedByProfile.length > 0) {
+        console.log(`📸 Found ${orphanedByProfile.length} cat photos with non-existent cat profiles`)
+        
+        // For these, we have two options:
+        // Option 1: Clear the cat_profile_id (keep the photo but unlink from profile)
+        // Option 2: Delete the photo entirely if it's problematic for the swipe feature
+        
+        // Let's check if the users still exist for these cats
+        const catsWithValidUsers = orphanedByProfile.filter(cat => validUserIds.includes(cat.user_id))
+        const catsWithInvalidUsers = orphanedByProfile.filter(cat => !validUserIds.includes(cat.user_id))
+        
+        // For cats with valid users, just clear the cat_profile_id
+        if (catsWithValidUsers.length > 0) {
+          const { error: updateError } = await supabase
+            .from('cats')
+            .update({ cat_profile_id: null })
+            .in('id', catsWithValidUsers.map(cat => cat.id))
+          
+          if (updateError) {
+            console.warn('Warning: Could not clear orphaned cat_profile_id references:', updateError.message)
+          } else {
+            console.log(`✅ Cleared ${catsWithValidUsers.length} orphaned cat profile references (kept photos)`)
+          }
+        }
+        
+        // For cats with invalid users, delete them entirely
+        if (catsWithInvalidUsers.length > 0) {
+          const invalidCatIds = catsWithInvalidUsers.map(cat => cat.id)
+          
+          // Clean up related data first
+          await safeDelete(
+            'user_interactions',
+            supabase.from('user_interactions').delete().in('cat_id', invalidCatIds),
+            'Removing interactions for profile-orphaned cats with invalid users'
+          )
+          
+          await safeDelete(
+            'reactions',
+            supabase.from('reactions').delete().in('cat_id', invalidCatIds),
+            'Removing reactions for profile-orphaned cats with invalid users'
+          )
+          
+          await safeDelete(
+            'photo_exposure',
+            supabase.from('photo_exposure').delete().in('cat_id', invalidCatIds),
+            'Removing exposure records for profile-orphaned cats with invalid users'
+          )
+          
+          await safeDelete(
+            'reports',
+            supabase.from('reports').delete().in('cat_id', invalidCatIds),
+            'Removing reports for profile-orphaned cats with invalid users'
+          )
+          
+          await safeDelete(
+            'cats',
+            supabase.from('cats').delete().in('id', invalidCatIds),
+            'Removing profile-orphaned cats with invalid users'
+          )
+          
+          console.log(`✅ Deleted ${catsWithInvalidUsers.length} cats with both invalid profiles and users`)
+        }
+      } else {
+        console.log('ℹ️ No cats with non-existent cat profiles found')
+      }
+
+      // 3. Find and remove cats with dummy usernames (user_1, user_2, etc.)
+      console.log('🔍 Checking for cats with dummy usernames...')
+      
+      // Get all cats with their user information
+      const { data: catsWithUsers, error: catsUsersError } = await supabase
+        .from('cats')
+        .select(`
+          id, 
+          user_id, 
+          name, 
+          image_url,
+          users!inner(username)
+        `)
+      
+      if (catsUsersError) {
+        console.warn('Warning: Could not check for dummy username cats:', catsUsersError.message)
+      } else if (catsWithUsers && catsWithUsers.length > 0) {
+        // Filter cats that have dummy usernames like user_1, user_2, etc.
+        const dummyUsernameCats = catsWithUsers.filter(cat => {
+          const username = cat.users?.username
+          return username && username.match(/^user_\d+$/)
+        })
+        
+        if (dummyUsernameCats.length > 0) {
+          console.log(`📸 Found ${dummyUsernameCats.length} cat photos with dummy usernames`)
+          
+          const dummyCatIds = dummyUsernameCats.map(cat => cat.id)
+          const dummyUserIds = [...new Set(dummyUsernameCats.map(cat => cat.user_id))]
+          
+          // Clean up all related data for these dummy cats
+          await safeDelete(
+            'user_interactions',
+            supabase.from('user_interactions').delete().in('cat_id', dummyCatIds),
+            'Removing interactions for dummy username cats'
+          )
+          
+          await safeDelete(
+            'reactions',
+            supabase.from('reactions').delete().in('cat_id', dummyCatIds),
+            'Removing reactions for dummy username cats'
+          )
+          
+          await safeDelete(
+            'photo_exposure',
+            supabase.from('photo_exposure').delete().in('cat_id', dummyCatIds),
+            'Removing exposure records for dummy username cats'
+          )
+          
+          await safeDelete(
+            'reports',
+            supabase.from('reports').delete().in('cat_id', dummyCatIds),
+            'Removing reports for dummy username cats'
+          )
+          
+          // Delete the dummy cat records
+          await safeDelete(
+            'cats',
+            supabase.from('cats').delete().in('id', dummyCatIds),
+            'Removing dummy username cat photos from database'
+          )
+          
+          // Also clean up the dummy user accounts and their profiles
+          await safeDelete(
+            'cat_profiles',
+            supabase.from('cat_profiles').delete().in('user_id', dummyUserIds),
+            'Removing cat profiles for dummy users'
+          )
+          
+          await safeDelete(
+            'users',
+            supabase.from('users').delete().in('id', dummyUserIds),
+            'Removing dummy user profiles from database'
+          )
+          
+          // Delete dummy user accounts from auth
+          console.log('👥 Deleting dummy user accounts from auth...')
+          for (const userId of dummyUserIds) {
+            try {
+              const { error } = await supabase.auth.admin.deleteUser(userId)
+              if (error) {
+                console.warn(`Warning: Could not delete dummy auth user ${userId}:`, error.message)
+              } else {
+                console.log(`✅ Deleted dummy auth user: ${userId}`)
+              }
+            } catch (error) {
+              console.warn(`Warning: Error deleting dummy auth user ${userId}:`, error.message)
+            }
+          }
+          
+          console.log(`✅ Cleaned up ${dummyUsernameCats.length} cats and ${dummyUserIds.length} dummy users`)
+        } else {
+          console.log('ℹ️ No cats with dummy usernames found')
+        }
+      }
     }
     
-    // 3. Find and clean up orphaned storage files
+    // 4. Find and clean up orphaned storage files
     console.log('🗂️ Checking for orphaned storage files...')
     
     try {
@@ -281,65 +389,132 @@ async function cleanOrphanedPhotos() {
       console.warn('Warning: Storage orphan cleanup failed:', storageError.message)
     }
     
-    // 4. Clean up orphaned records in related tables
+    // 5. Clean up orphaned records in related tables
     console.log('🧽 Cleaning up orphaned records in related tables...')
     
     try {
-      // Clean up photo_exposure records for non-existent cats
-      await safeDelete(
-        'photo_exposure',
-        supabase.from('photo_exposure').delete().not('cat_id', 'in', `(SELECT id FROM cats)`),
-        'Removing orphaned photo exposure records'
-      )
+      // Get current valid cat IDs and user IDs for cleanup
+      const { data: currentCats } = await supabase.from('cats').select('id')
+      const { data: currentUsers } = await supabase.from('users').select('id')
       
-      // Clean up user_interactions for non-existent cats
-      await safeDelete(
-        'user_interactions',
-        supabase.from('user_interactions').delete().not('cat_id', 'in', `(SELECT id FROM cats)`),
-        'Removing orphaned user interactions'
-      )
+      const currentCatIds = currentCats?.map(cat => cat.id) || []
+      const currentUserIds = currentUsers?.map(user => user.id) || []
       
-      // Clean up reactions for non-existent cats
-      await safeDelete(
-        'reactions',
-        supabase.from('reactions').delete().not('cat_id', 'in', `(SELECT id FROM cats)`),
-        'Removing orphaned reactions'
-      )
+      if (currentCatIds.length > 0) {
+        // Clean up photo_exposure records for non-existent cats
+        const { data: orphanedExposure } = await supabase
+          .from('photo_exposure')
+          .select('cat_id')
+          .not('cat_id', 'in', `(${currentCatIds.map(id => `'${id}'`).join(',')})`)
+        
+        if (orphanedExposure && orphanedExposure.length > 0) {
+          await safeDelete(
+            'photo_exposure',
+            supabase.from('photo_exposure').delete().in('cat_id', orphanedExposure.map(e => e.cat_id)),
+            'Removing orphaned photo exposure records'
+          )
+        }
+        
+        // Clean up user_interactions for non-existent cats
+        const { data: orphanedInteractions } = await supabase
+          .from('user_interactions')
+          .select('cat_id')
+          .not('cat_id', 'in', `(${currentCatIds.map(id => `'${id}'`).join(',')})`)
+        
+        if (orphanedInteractions && orphanedInteractions.length > 0) {
+          await safeDelete(
+            'user_interactions',
+            supabase.from('user_interactions').delete().in('cat_id', orphanedInteractions.map(i => i.cat_id)),
+            'Removing orphaned user interactions'
+          )
+        }
+        
+        // Clean up reactions for non-existent cats
+        const { data: orphanedReactions } = await supabase
+          .from('reactions')
+          .select('cat_id')
+          .not('cat_id', 'in', `(${currentCatIds.map(id => `'${id}'`).join(',')})`)
+        
+        if (orphanedReactions && orphanedReactions.length > 0) {
+          await safeDelete(
+            'reactions',
+            supabase.from('reactions').delete().in('cat_id', orphanedReactions.map(r => r.cat_id)),
+            'Removing orphaned reactions'
+          )
+        }
+        
+        // Clean up reports for non-existent cats
+        const { data: orphanedReports } = await supabase
+          .from('reports')
+          .select('cat_id')
+          .not('cat_id', 'in', `(${currentCatIds.map(id => `'${id}'`).join(',')})`)
+        
+        if (orphanedReports && orphanedReports.length > 0) {
+          await safeDelete(
+            'reports',
+            supabase.from('reports').delete().in('cat_id', orphanedReports.map(r => r.cat_id)),
+            'Removing orphaned reports'
+          )
+        }
+      }
       
-      // Clean up reports for non-existent cats
-      await safeDelete(
-        'reports',
-        supabase.from('reports').delete().not('cat_id', 'in', `(SELECT id FROM cats)`),
-        'Removing orphaned reports'
-      )
-      
-      // Clean up user_interactions for non-existent users
-      await safeDelete(
-        'user_interactions',
-        supabase.from('user_interactions').delete().not('user_id', 'in', `(SELECT id FROM users)`),
-        'Removing user interactions for non-existent users'
-      )
-      
-      // Clean up reactions for non-existent users
-      await safeDelete(
-        'reactions',
-        supabase.from('reactions').delete().not('user_id', 'in', `(SELECT id FROM users)`),
-        'Removing reactions for non-existent users'
-      )
-      
-      // Clean up swipe_sessions for non-existent users
-      await safeDelete(
-        'swipe_sessions',
-        supabase.from('swipe_sessions').delete().not('user_id', 'in', `(SELECT id FROM users)`),
-        'Removing swipe sessions for non-existent users'
-      )
-      
-      // Clean up reports for non-existent users
-      await safeDelete(
-        'reports',
-        supabase.from('reports').delete().not('reporter_id', 'in', `(SELECT id FROM users)`),
-        'Removing reports for non-existent users'
-      )
+      if (currentUserIds.length > 0) {
+        // Clean up user_interactions for non-existent users
+        const { data: orphanedUserInteractions } = await supabase
+          .from('user_interactions')
+          .select('user_id')
+          .not('user_id', 'in', `(${currentUserIds.map(id => `'${id}'`).join(',')})`)
+        
+        if (orphanedUserInteractions && orphanedUserInteractions.length > 0) {
+          await safeDelete(
+            'user_interactions',
+            supabase.from('user_interactions').delete().in('user_id', orphanedUserInteractions.map(i => i.user_id)),
+            'Removing user interactions for non-existent users'
+          )
+        }
+        
+        // Clean up reactions for non-existent users
+        const { data: orphanedUserReactions } = await supabase
+          .from('reactions')
+          .select('user_id')
+          .not('user_id', 'in', `(${currentUserIds.map(id => `'${id}'`).join(',')})`)
+        
+        if (orphanedUserReactions && orphanedUserReactions.length > 0) {
+          await safeDelete(
+            'reactions',
+            supabase.from('reactions').delete().in('user_id', orphanedUserReactions.map(r => r.user_id)),
+            'Removing reactions for non-existent users'
+          )
+        }
+        
+        // Clean up swipe_sessions for non-existent users
+        const { data: orphanedSessions } = await supabase
+          .from('swipe_sessions')
+          .select('user_id')
+          .not('user_id', 'in', `(${currentUserIds.map(id => `'${id}'`).join(',')})`)
+        
+        if (orphanedSessions && orphanedSessions.length > 0) {
+          await safeDelete(
+            'swipe_sessions',
+            supabase.from('swipe_sessions').delete().in('user_id', orphanedSessions.map(s => s.user_id)),
+            'Removing swipe sessions for non-existent users'
+          )
+        }
+        
+        // Clean up reports for non-existent users
+        const { data: orphanedUserReports } = await supabase
+          .from('reports')
+          .select('reporter_id')
+          .not('reporter_id', 'in', `(${currentUserIds.map(id => `'${id}'`).join(',')})`)
+        
+        if (orphanedUserReports && orphanedUserReports.length > 0) {
+          await safeDelete(
+            'reports',
+            supabase.from('reports').delete().in('reporter_id', orphanedUserReports.map(r => r.reporter_id)),
+            'Removing reports for non-existent users'
+          )
+        }
+      }
       
       console.log('✅ Completed orphaned records cleanup')
       
@@ -347,20 +522,25 @@ async function cleanOrphanedPhotos() {
       console.warn('Warning: Orphaned records cleanup had issues:', cleanupError.message)
     }
     
-    // 5. Final verification - count remaining cats and their validity
+    // 6. Final verification - count remaining cats and their validity
     console.log('📊 Final verification...')
     
     try {
       const { data: remainingCats, error: countError } = await supabase
         .from('cats')
-        .select('id, user_id, cat_profile_id')
+        .select(`
+          id, 
+          user_id, 
+          cat_profile_id,
+          users!inner(username)
+        `)
       
       if (!countError && remainingCats) {
         console.log(`📸 Total remaining cat photos: ${remainingCats.length}`)
         
         // Check how many have valid users
-        const catsWithValidUsers = remainingCats.filter(cat => cat.user_id)
-        console.log(`👥 Cats with user references: ${catsWithValidUsers.length}`)
+        const catsWithValidUsers = remainingCats.filter(cat => cat.user_id && cat.users?.username)
+        console.log(`👥 Cats with valid user references: ${catsWithValidUsers.length}`)
         
         // Check how many have cat profiles
         const catsWithProfiles = remainingCats.filter(cat => cat.cat_profile_id)
@@ -368,6 +548,18 @@ async function cleanOrphanedPhotos() {
         
         const catsWithoutProfiles = remainingCats.filter(cat => !cat.cat_profile_id)
         console.log(`📷 Standalone cat photos: ${catsWithoutProfiles.length}`)
+        
+        // Check for any remaining dummy usernames
+        const remainingDummyUsers = remainingCats.filter(cat => {
+          const username = cat.users?.username
+          return username && username.match(/^user_\d+$/)
+        })
+        
+        if (remainingDummyUsers.length > 0) {
+          console.warn(`⚠️ Warning: ${remainingDummyUsers.length} cats still have dummy usernames`)
+        } else {
+          console.log(`✅ No dummy usernames remaining`)
+        }
       }
     } catch (verificationError) {
       console.warn('Warning: Final verification failed:', verificationError.message)
@@ -548,7 +740,7 @@ async function cleanDemoData() {
       }
     }
     
-    // Step 7: Comprehensive orphaned cleanup
+    // Step 7: Comprehensive orphaned cleanup (including dummy users)
     console.log('🧽 Running comprehensive orphaned cleanup...')
     await cleanOrphanedPhotos()
     
@@ -565,6 +757,7 @@ async function cleanDemoData() {
     console.log('   • All storage files uploaded by demo users')
     console.log('   • All reports involving demo content')
     console.log('   • All orphaned photos without valid users/profiles')
+    console.log('   • All dummy users (user_1, user_2, etc.) and their content')
     console.log('   • All orphaned storage files')
     console.log('   • All orphaned records in related tables')
     console.log('')

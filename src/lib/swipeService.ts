@@ -51,7 +51,7 @@ export const INTERACTION_TYPES: InteractionType = {
   REPORT: 'report'
 }
 
-// Demo cats for when Supabase is not configured - expanded to ensure 20+ cats
+// Clean demo cats for when Supabase is not configured - only high-quality, realistic entries
 const demoCats: EnhancedCat[] = [
   {
     id: '1',
@@ -61,10 +61,10 @@ const demoCats: EnhancedCat[] = [
     caption: 'Playing in the sunny garden 🌞',
     image_url: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    username: 'demo_user',
+    username: 'sarah_catlover',
     exposure_score: 0.5,
     priority_level: 1,
-    user: { id: 'demo', email: 'demo@example.com', username: 'demo_user', created_at: new Date().toISOString() },
+    user: { id: 'demo', email: 'sarah@test.com', username: 'sarah_catlover', created_at: new Date().toISOString() },
     cat_profile: { id: '1', name: 'Whiskers' }
   },
   {
@@ -75,10 +75,10 @@ const demoCats: EnhancedCat[] = [
     caption: 'Nap time in my favorite spot',
     image_url: 'https://images.pexels.com/photos/416160/pexels-photo-416160.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    username: 'cat_lover',
+    username: 'emma_kitty',
     exposure_score: 0.3,
     priority_level: 1,
-    user: { id: 'demo', email: 'demo@example.com', username: 'cat_lover', created_at: new Date().toISOString() },
+    user: { id: 'demo', email: 'emma@test.com', username: 'emma_kitty', created_at: new Date().toISOString() },
     cat_profile: { id: '2', name: 'Luna' }
   },
   {
@@ -86,12 +86,13 @@ const demoCats: EnhancedCat[] = [
     user_id: 'demo',
     name: 'Mittens',
     description: 'Loves to sleep in sunny spots',
+    caption: 'Best nap spot ever found! 😴',
     image_url: 'https://images.pexels.com/photos/1170986/pexels-photo-1170986.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    username: 'kitty_fan',
+    username: 'mia_meow',
     exposure_score: 0.8,
     priority_level: 2,
-    user: { id: 'demo', email: 'demo@example.com', username: 'kitty_fan', created_at: new Date().toISOString() },
+    user: { id: 'demo', email: 'mia@test.com', username: 'mia_meow', created_at: new Date().toISOString() },
     cat_profile: { id: '3', name: 'Mittens' }
   },
   {
@@ -101,10 +102,10 @@ const demoCats: EnhancedCat[] = [
     caption: 'Being mysterious as always 🖤',
     image_url: 'https://images.pexels.com/photos/2071882/pexels-photo-2071882.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    username: 'shadow_lover',
+    username: 'lily_pawsome',
     exposure_score: 0.2,
     priority_level: 1,
-    user: { id: 'demo', email: 'demo@example.com', username: 'shadow_lover', created_at: new Date().toISOString() },
+    user: { id: 'demo', email: 'lily@test.com', username: 'lily_pawsome', created_at: new Date().toISOString() },
     cat_profile: { id: '4', name: 'Shadow' }
   },
   {
@@ -114,26 +115,207 @@ const demoCats: EnhancedCat[] = [
     caption: 'Just had my grooming session! ✨',
     image_url: 'https://images.pexels.com/photos/1741205/pexels-photo-1741205.jpeg?auto=compress&cs=tinysrgb&w=400',
     upload_date: new Date().toISOString(),
-    username: 'fluffy_mom',
+    username: 'zoe_feline',
     exposure_score: 0.6,
     priority_level: 2,
-    user: { id: 'demo', email: 'demo@example.com', username: 'fluffy_mom', created_at: new Date().toISOString() },
+    user: { id: 'demo', email: 'zoe@test.com', username: 'zoe_feline', created_at: new Date().toISOString() },
     cat_profile: { id: '5', name: 'Fluffy' }
   },
-  // Add more demo cats to ensure we always have 20+
-  ...Array.from({ length: 15 }, (_, i) => ({
-    id: `demo-${i + 6}`,
+  {
+    id: '6',
     user_id: 'demo',
-    name: `Cat ${i + 6}`,
-    caption: `Demo cat number ${i + 6} 😸`,
-    image_url: `https://images.pexels.com/photos/${1056251 + i}/pexels-photo-${1056251 + i}.jpeg?auto=compress&cs=tinysrgb&w=400`,
-    upload_date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
-    username: `user_${i + 6}`,
-    exposure_score: Math.random(),
-    priority_level: Math.floor(Math.random() * 3) + 1,
-    user: { id: 'demo', email: `user${i + 6}@example.com`, username: `user_${i + 6}`, created_at: new Date().toISOString() },
-    cat_profile: { id: `demo-${i + 6}`, name: `Cat ${i + 6}` }
-  }))
+    name: 'Oreo',
+    caption: 'Black and white and cute all over! 🖤🤍',
+    image_url: 'https://images.pexels.com/photos/1056251/pexels-photo-1056251.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'grace_whiskers',
+    exposure_score: 0.4,
+    priority_level: 1,
+    user: { id: 'demo', email: 'grace@test.com', username: 'grace_whiskers', created_at: new Date().toISOString() },
+    cat_profile: { id: '6', name: 'Oreo' }
+  },
+  {
+    id: '7',
+    user_id: 'demo',
+    name: 'Ginger',
+    caption: 'Orange you glad to see me? 🧡',
+    image_url: 'https://images.pexels.com/photos/1643457/pexels-photo-1643457.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'ava_purr',
+    exposure_score: 0.7,
+    priority_level: 2,
+    user: { id: 'demo', email: 'ava@test.com', username: 'ava_purr', created_at: new Date().toISOString() },
+    cat_profile: { id: '7', name: 'Ginger' }
+  },
+  {
+    id: '8',
+    user_id: 'demo',
+    name: 'Snowball',
+    caption: 'Pure white fluffiness! ❄️',
+    image_url: 'https://images.pexels.com/photos/2194261/pexels-photo-2194261.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'chloe_cats',
+    exposure_score: 0.3,
+    priority_level: 1,
+    user: { id: 'demo', email: 'chloe@test.com', username: 'chloe_cats', created_at: new Date().toISOString() },
+    cat_profile: { id: '8', name: 'Snowball' }
+  },
+  {
+    id: '9',
+    user_id: 'demo',
+    name: 'Tiger',
+    caption: 'Stripes and attitude! 🐅',
+    image_url: 'https://images.pexels.com/photos/1276553/pexels-photo-1276553.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'maya_meows',
+    exposure_score: 0.5,
+    priority_level: 1,
+    user: { id: 'demo', email: 'maya@test.com', username: 'maya_meows', created_at: new Date().toISOString() },
+    cat_profile: { id: '9', name: 'Tiger' }
+  },
+  {
+    id: '10',
+    user_id: 'demo',
+    name: 'Princess',
+    caption: 'Royalty demands attention! 👑',
+    image_url: 'https://images.pexels.com/photos/1404819/pexels-photo-1404819.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'ruby_furbaby',
+    exposure_score: 0.6,
+    priority_level: 2,
+    user: { id: 'demo', email: 'ruby@test.com', username: 'ruby_furbaby', created_at: new Date().toISOString() },
+    cat_profile: { id: '10', name: 'Princess' }
+  },
+  {
+    id: '11',
+    user_id: 'demo',
+    name: 'Smokey',
+    caption: 'Gray and gorgeous! 💨',
+    image_url: 'https://images.pexels.com/photos/1314550/pexels-photo-1314550.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'sophia_kitties',
+    exposure_score: 0.4,
+    priority_level: 1,
+    user: { id: 'demo', email: 'sophia@test.com', username: 'sophia_kitties', created_at: new Date().toISOString() },
+    cat_profile: { id: '11', name: 'Smokey' }
+  },
+  {
+    id: '12',
+    user_id: 'demo',
+    name: 'Patches',
+    caption: 'Perfectly patched! 🎨',
+    image_url: 'https://images.pexels.com/photos/1571076/pexels-photo-1571076.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'hannah_paws',
+    exposure_score: 0.7,
+    priority_level: 2,
+    user: { id: 'demo', email: 'hannah@test.com', username: 'hannah_paws', created_at: new Date().toISOString() },
+    cat_profile: { id: '12', name: 'Patches' }
+  },
+  {
+    id: '13',
+    user_id: 'demo',
+    name: 'Coco',
+    caption: 'Sweet like chocolate! 🍫',
+    image_url: 'https://images.pexels.com/photos/1183434/pexels-photo-1183434.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'olivia_catmom',
+    exposure_score: 0.5,
+    priority_level: 1,
+    user: { id: 'demo', email: 'olivia@test.com', username: 'olivia_catmom', created_at: new Date().toISOString() },
+    cat_profile: { id: '13', name: 'Coco' }
+  },
+  {
+    id: '14',
+    user_id: 'demo',
+    name: 'Daisy',
+    caption: 'Fresh as a flower! 🌼',
+    image_url: 'https://images.pexels.com/photos/1444321/pexels-photo-1444321.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'natalie_fluff',
+    exposure_score: 0.3,
+    priority_level: 1,
+    user: { id: 'demo', email: 'natalie@test.com', username: 'natalie_fluff', created_at: new Date().toISOString() },
+    cat_profile: { id: '14', name: 'Daisy' }
+  },
+  {
+    id: '15',
+    user_id: 'demo',
+    name: 'Felix',
+    caption: 'Classic black and white charm! 🎭',
+    image_url: 'https://images.pexels.com/photos/1661535/pexels-photo-1661535.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'jessica_purrs',
+    exposure_score: 0.6,
+    priority_level: 2,
+    user: { id: 'demo', email: 'jessica@test.com', username: 'jessica_purrs', created_at: new Date().toISOString() },
+    cat_profile: { id: '15', name: 'Felix' }
+  },
+  {
+    id: '16',
+    user_id: 'demo',
+    name: 'Jasper',
+    caption: 'Handsome and he knows it! 😎',
+    image_url: 'https://images.pexels.com/photos/1687831/pexels-photo-1687831.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'amanda_whiskers',
+    exposure_score: 0.4,
+    priority_level: 1,
+    user: { id: 'demo', email: 'amanda@test.com', username: 'amanda_whiskers', created_at: new Date().toISOString() },
+    cat_profile: { id: '16', name: 'Jasper' }
+  },
+  {
+    id: '17',
+    user_id: 'demo',
+    name: 'Ruby',
+    caption: 'Precious like a gem! 💎',
+    image_url: 'https://images.pexels.com/photos/1741206/pexels-photo-1741206.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'rachel_kitty',
+    exposure_score: 0.7,
+    priority_level: 2,
+    user: { id: 'demo', email: 'rachel@test.com', username: 'rachel_kitty', created_at: new Date().toISOString() },
+    cat_profile: { id: '17', name: 'Ruby' }
+  },
+  {
+    id: '18',
+    user_id: 'demo',
+    name: 'Oscar',
+    caption: 'Award-winning cuteness! 🏆',
+    image_url: 'https://images.pexels.com/photos/2061057/pexels-photo-2061057.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'kelly_feline',
+    exposure_score: 0.5,
+    priority_level: 1,
+    user: { id: 'demo', email: 'kelly@test.com', username: 'kelly_feline', created_at: new Date().toISOString() },
+    cat_profile: { id: '18', name: 'Oscar' }
+  },
+  {
+    id: '19',
+    user_id: 'demo',
+    name: 'Rosie',
+    caption: 'Pink nose, pink heart! 🌹',
+    image_url: 'https://images.pexels.com/photos/2173872/pexels-photo-2173872.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'lauren_meow',
+    exposure_score: 0.3,
+    priority_level: 1,
+    user: { id: 'demo', email: 'lauren@test.com', username: 'lauren_meow', created_at: new Date().toISOString() },
+    cat_profile: { id: '19', name: 'Rosie' }
+  },
+  {
+    id: '20',
+    user_id: 'demo',
+    name: 'Stella',
+    caption: 'Shining bright like a star! ⭐',
+    image_url: 'https://images.pexels.com/photos/2361952/pexels-photo-2361952.jpeg?auto=compress&cs=tinysrgb&w=400',
+    upload_date: new Date().toISOString(),
+    username: 'stephanie_paws',
+    exposure_score: 0.6,
+    priority_level: 2,
+    user: { id: 'demo', email: 'stephanie@test.com', username: 'stephanie_paws', created_at: new Date().toISOString() },
+    cat_profile: { id: '20', name: 'Stella' }
+  }
 ]
 
 class SwipeService {
@@ -185,12 +367,32 @@ class SwipeService {
         } : undefined
       }))
 
-      // Ensure we always return exactly the requested limit
-      if (enhancedCats.length < limit) {
-        console.warn(`Only ${enhancedCats.length} cats available, requested ${limit}`)
+      // Filter out any cats that don't have valid users or have dummy usernames
+      const validCats = enhancedCats.filter(cat => {
+        // Ensure the cat has a valid username and it's not a dummy pattern
+        const username = cat.username || cat.user?.username
+        if (!username) return false
+        
+        // Filter out dummy usernames like user_1, user_2, etc.
+        if (username.match(/^user_\d+$/)) return false
+        
+        // Ensure the cat has a valid user_id
+        if (!cat.user_id || cat.user_id === 'demo') return false
+        
+        // Ensure the cat has an image URL
+        if (!cat.image_url) return false
+        
+        return true
+      })
+
+      // If we don't have enough valid cats, fall back to demo cats
+      if (validCats.length < limit) {
+        console.warn(`Only ${validCats.length} valid cats available, supplementing with demo cats`)
+        const demoSuplement = this.getDemoCats(userId, limit - validCats.length, usePrioritization)
+        return [...validCats, ...demoSuplement]
       }
 
-      return enhancedCats
+      return validCats.slice(0, limit)
     } catch (error) {
       console.error('Error in getRandomizedCats:', error)
       // Fallback to demo cats on error
@@ -216,6 +418,13 @@ class SwipeService {
         this.demoInteractions.get(userId)!.add(`${catId}-${interactionType}`)
         console.log(`Demo interaction recorded: ${interactionType} on cat ${catId}`)
         return `demo-${Date.now()}`
+      }
+
+      // Validate that catId is a proper UUID format for non-demo mode
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(catId)) {
+        console.warn(`Invalid cat ID format: ${catId}, skipping interaction`)
+        return null
       }
 
       const session = await this.getCurrentSession(userId)
@@ -397,9 +606,9 @@ class SwipeService {
     try {
       if (isDemoMode) {
         return [
-          { priority_level: 1, photo_count: 10, description: 'Never seen' },
-          { priority_level: 2, photo_count: 5, description: 'Seen but no interaction' },
-          { priority_level: 3, photo_count: 5, description: 'Previously interacted' }
+          { priority_level: 1, photo_count: 15, description: 'Never seen' },
+          { priority_level: 2, photo_count: 3, description: 'Seen but no interaction' },
+          { priority_level: 3, photo_count: 2, description: 'Previously interacted' }
         ]
       }
 
