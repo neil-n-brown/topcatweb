@@ -32,23 +32,29 @@ envPaths.forEach((envPath, index) => {
 })
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 console.log('\n🔍 Environment variable check:')
 console.log('VITE_SUPABASE_URL exists:', !!supabaseUrl)
+console.log('VITE_SUPABASE_ANON_KEY exists:', !!supabaseAnonKey)
 console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!supabaseServiceKey)
 
 if (supabaseUrl) {
   console.log('VITE_SUPABASE_URL preview:', supabaseUrl.substring(0, 30) + '...')
 }
+if (supabaseAnonKey) {
+  console.log('VITE_SUPABASE_ANON_KEY preview:', supabaseAnonKey.substring(0, 20) + '...')
+}
 if (supabaseServiceKey) {
   console.log('SUPABASE_SERVICE_ROLE_KEY preview:', supabaseServiceKey.substring(0, 20) + '...')
 }
 
-if (!supabaseUrl || !supabaseServiceKey) {
+if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
   console.error('\n❌ Missing Supabase configuration.')
   console.error('Please ensure you have a .env file with:')
   console.error('VITE_SUPABASE_URL=your_supabase_url')
+  console.error('VITE_SUPABASE_ANON_KEY=your_supabase_anon_key')
   console.error('SUPABASE_SERVICE_ROLE_KEY=your_service_role_key')
   console.error('')
   console.error('The .env file should be in one of these locations:')
@@ -56,12 +62,18 @@ if (!supabaseUrl || !supabaseServiceKey) {
     console.error(`  ${index + 1}. ${envPath}`)
   })
   console.error('')
-  console.error('Note: You need the SERVICE ROLE KEY, not the anon key!')
+  console.error('Note: You need BOTH the anon key AND the service role key!')
   process.exit(1)
 }
 
 if (supabaseServiceKey === 'your_service_role_key_here') {
   console.error('❌ Please replace "your_service_role_key_here" with your actual Supabase service role key.')
+  console.error('You can find this in your Supabase dashboard under Settings > API.')
+  process.exit(1)
+}
+
+if (supabaseAnonKey === 'your_supabase_anon_key') {
+  console.error('❌ Please replace "your_supabase_anon_key" with your actual Supabase anon key.')
   console.error('You can find this in your Supabase dashboard under Settings > API.')
   process.exit(1)
 }
@@ -77,7 +89,8 @@ try {
 
 console.log('\n✅ Environment variables loaded successfully')
 
-// Create Supabase client with enhanced configuration for better network handling
+// Create Supabase client with SERVICE ROLE KEY for admin operations
+// The service role key bypasses RLS and allows admin operations like deleting users
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
@@ -96,7 +109,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
         headers: {
           ...options.headers,
           'Connection': 'keep-alive',
-          'Keep-Alive': 'timeout=30'
+          'Keep-Alive': 'timeout=30',
+          // Ensure proper authorization header
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'apikey': supabaseServiceKey
         }
       }).finally(() => {
         clearTimeout(timeoutId)
@@ -261,6 +277,7 @@ async function cleanDemoData() {
       console.error('💡 Enhanced network troubleshooting checklist:')
       console.error('   ✓ Check your internet connection stability')
       console.error('   ✓ Verify VITE_SUPABASE_URL is correct and starts with https://')
+      console.error('   ✓ Confirm VITE_SUPABASE_ANON_KEY is valid')
       console.error('   ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
       console.error('   ✓ Ensure Supabase project is active and not paused')
       console.error('   ✓ Check for firewall/proxy blocking connections')
@@ -311,14 +328,21 @@ async function cleanDemoData() {
         if (authError.message.includes('JWT')) {
           console.error('This indicates an invalid or expired service role key.')
         }
+        if (authError.message.includes('API key')) {
+          console.error('This indicates missing or invalid API key configuration.')
+          console.error('Make sure both VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are set.')
+        }
       }
       console.error('')
       console.error('This usually means:')
       console.error('  • Network connectivity issues')
       console.error('  • Service role key is incorrect or expired')
+      console.error('  • Anon key is missing or incorrect')
       console.error('  • Supabase project is not accessible')
       console.error('')
-      console.error('Please verify your SUPABASE_SERVICE_ROLE_KEY in the .env file.')
+      console.error('Please verify both keys in the .env file:')
+      console.error('  • VITE_SUPABASE_ANON_KEY (for API access)')
+      console.error('  • SUPABASE_SERVICE_ROLE_KEY (for admin operations)')
       process.exit(1)
     }
     
