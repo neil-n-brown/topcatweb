@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { RefreshCw, BarChart3 } from 'lucide-react'
+import { RefreshCw, BarChart3, Info } from 'lucide-react'
 import SwipeCard from '../components/SwipeCard'
 import EmojiPicker from '../components/EmojiPicker'
 import { swipeService, EnhancedCat, INTERACTION_TYPES } from '../lib/swipeService'
@@ -15,10 +15,11 @@ export default function SwipePage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [userStats, setUserStats] = useState<any>(null)
+  const [priorityStats, setPriorityStats] = useState<any[]>([])
   const [showStats, setShowStats] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch cats with smart randomization
+  // Fetch cats with smart prioritization - ALWAYS gets exactly 20 photos
   const fetchCats = useCallback(async (refresh: boolean = false) => {
     if (!user) return
 
@@ -30,18 +31,32 @@ export default function SwipePage() {
         await swipeService.startNewSession(user.id)
       }
 
+      // Always request exactly 20 cats with smart prioritization
       const randomizedCats = await swipeService.getRandomizedCats(
         user.id,
-        20, // Load 20 cats at a time
-        true  // Exclude already interacted cats
+        20, // Always get exactly 20 cats
+        true  // Use smart prioritization
       )
 
       setCats(randomizedCats)
       setCurrentIndex(0)
 
-      // Load user stats
-      const stats = await swipeService.getUserStats(user.id)
+      // Load user stats and priority breakdown
+      const [stats, priorities] = await Promise.all([
+        swipeService.getUserStats(user.id),
+        swipeService.getPhotoPriorityStats(user.id)
+      ])
+      
       setUserStats(stats)
+      setPriorityStats(priorities)
+
+      console.log(`Loaded ${randomizedCats.length} cats with smart prioritization`)
+      if (randomizedCats.length > 0) {
+        console.log('Priority distribution:', randomizedCats.reduce((acc, cat) => {
+          acc[cat.priority_level || 'unknown'] = (acc[cat.priority_level || 'unknown'] || 0) + 1
+          return acc
+        }, {} as Record<string, number>))
+      }
 
     } catch (error: any) {
       console.error('Error fetching cats:', error)
@@ -52,19 +67,20 @@ export default function SwipePage() {
     }
   }, [user])
 
-  // Load more cats when running low
+  // Load more cats when running low (but maintain 20-cat batches)
   const loadMoreCats = useCallback(async () => {
-    if (!user || currentIndex < cats.length - 3) return
+    if (!user || currentIndex < cats.length - 5) return // Load when 5 cats remaining
 
     try {
       const moreCats = await swipeService.getRandomizedCats(
         user.id,
-        10, // Load 10 more cats
+        20, // Always load 20 more cats
         true
       )
 
       if (moreCats.length > 0) {
         setCats(prev => [...prev, ...moreCats])
+        console.log(`Loaded ${moreCats.length} more cats`)
       }
     } catch (error) {
       console.error('Error loading more cats:', error)
@@ -169,7 +185,7 @@ export default function SwipePage() {
     }
   }
 
-  // Handle refresh
+  // Handle refresh - gets fresh 20 cats
   const handleRefresh = () => {
     fetchCats(true)
   }
@@ -194,8 +210,8 @@ export default function SwipePage() {
       <div className="flex items-center justify-center min-h-screen pb-20 md:pb-0 md:pl-72">
         <div className="text-center">
           <div className="text-6xl mb-4 loading-paw">🐾</div>
-          <div className="text-lg text-cute-primary font-medium">Finding adorable cats...</div>
-          <div className="text-sm text-cute-secondary mt-2">Using smart randomization! 😻</div>
+          <div className="text-lg text-cute-primary font-medium">Loading 20 perfect cats...</div>
+          <div className="text-sm text-cute-secondary mt-2">Smart prioritization active! 😻</div>
         </div>
       </div>
     )
@@ -221,17 +237,18 @@ export default function SwipePage() {
     )
   }
 
-  if (cats.length === 0 || currentIndex >= cats.length) {
+  // When user reaches end of current batch, automatically load more
+  if (currentIndex >= cats.length) {
+    // Trigger loading more cats
+    loadMoreCats()
+    
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center pb-20 md:pb-0 md:pl-72">
         <div className="card-cute p-8 max-w-md">
-          <div className="text-8xl mb-6 float-animation">🎉</div>
-          <h2 className="text-2xl font-bold text-cute-primary mb-4">You've seen all available cats!</h2>
+          <div className="text-8xl mb-6 float-animation">🔄</div>
+          <h2 className="text-2xl font-bold text-cute-primary mb-4">Loading more cats...</h2>
           <p className="text-cute-secondary mb-6 leading-relaxed">
-            {isDemoMode 
-              ? 'This is demo mode. In the full app, new cats are added regularly! 🚀😸' 
-              : 'Check back later for more adorable cats, or refresh to see cats you might have missed. 🐱💕'
-            }
+            Getting your next batch of 20 cats with smart prioritization! 🎯😸
           </p>
           
           {userStats && (
@@ -246,34 +263,24 @@ export default function SwipePage() {
             </div>
           )}
 
-          <div className="space-y-3">
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="btn-cute hover-bounce flex items-center space-x-2 w-full justify-center"
-            >
-              {refreshing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Getting fresh cats...</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Get Fresh Cats</span>
-                  <span className="text-xl">🔄</span>
-                </>
-              )}
-            </button>
-            
-            <button
-              onClick={() => setShowStats(!showStats)}
-              className="w-full py-2 text-cute-secondary hover:text-cute-primary transition-colors flex items-center justify-center space-x-2"
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>View Detailed Stats</span>
-            </button>
-          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="btn-cute hover-bounce flex items-center space-x-2 w-full justify-center"
+          >
+            {refreshing ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Getting fresh cats...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                <span>Get Fresh 20 Cats</span>
+                <span className="text-xl">🔄</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     )
@@ -288,7 +295,7 @@ export default function SwipePage() {
         <div className="alert-cute-warning p-4 text-center border-b border-yellow-300">
           <p className="font-medium flex items-center justify-center">
             <span className="text-2xl mr-2">🎮</span>
-            Demo Mode - Smart randomization active! Connect to Supabase for full features.
+            Demo Mode - Smart prioritization active! Always shows exactly 20 cats.
             <span className="text-2xl ml-2">😸</span>
           </p>
         </div>
@@ -311,45 +318,64 @@ export default function SwipePage() {
               <h1 className="text-xl font-bold text-cute-primary">Smart Swipe!</h1>
               <span className="text-2xl">💕</span>
             </div>
-            <p className="text-sm text-cute-secondary">Fair & randomized</p>
+            <p className="text-sm text-cute-secondary">Always 20 cats</p>
           </div>
 
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             className="p-2 text-cute-secondary hover:text-cute-primary transition-colors rounded-full hover:bg-white/30"
-            title="Refresh Cats"
+            title="Get Fresh 20 Cats"
           >
             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
         {/* Stats display */}
-        {showStats && userStats && (
+        {showStats && (
           <div className="mt-4 mx-4">
             <div className="card-cute p-4 max-w-sm mx-auto">
               <h3 className="font-bold text-cute-primary mb-3 flex items-center justify-center">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Your Stats
               </h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-orange-600">{userStats.cats_viewed || 0}</div>
-                  <div className="text-cute-secondary">Viewed</div>
+              
+              {userStats && (
+                <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-orange-600">{userStats.cats_viewed || 0}</div>
+                    <div className="text-cute-secondary">Viewed</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-pink-600">{userStats.emoji_reactions || 0}</div>
+                    <div className="text-cute-secondary">Reactions</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-green-600">{userStats.swipes_right || 0}</div>
+                    <div className="text-cute-secondary">Likes</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-gray-600">{userStats.swipes_left || 0}</div>
+                    <div className="text-cute-secondary">Passes</div>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-pink-600">{userStats.emoji_reactions || 0}</div>
-                  <div className="text-cute-secondary">Reactions</div>
+              )}
+
+              {/* Priority breakdown */}
+              {priorityStats.length > 0 && (
+                <div className="border-t border-gray-200 pt-3">
+                  <h4 className="text-xs font-medium text-cute-primary mb-2 flex items-center">
+                    <Info className="w-3 h-3 mr-1" />
+                    Available Photos
+                  </h4>
+                  {priorityStats.map((stat, index) => (
+                    <div key={index} className="flex justify-between text-xs text-cute-secondary mb-1">
+                      <span>{stat.description}:</span>
+                      <span className="font-medium">{stat.photo_count}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-green-600">{userStats.swipes_right || 0}</div>
-                  <div className="text-cute-secondary">Likes</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-gray-600">{userStats.swipes_left || 0}</div>
-                  <div className="text-cute-secondary">Passes</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -409,9 +435,9 @@ export default function SwipePage() {
               {currentIndex + 1} of {cats.length}
             </span>
             <span className="text-lg">🐱</span>
-            {currentCat?.exposure_score !== undefined && (
+            {currentCat?.priority_level && (
               <span className="text-xs text-cute-secondary">
-                (Fair: {(currentCat.exposure_score * 100).toFixed(0)}%)
+                (P{currentCat.priority_level})
               </span>
             )}
           </div>

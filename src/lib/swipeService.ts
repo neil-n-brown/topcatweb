@@ -21,6 +21,7 @@ export interface EnhancedCat {
   username: string
   email?: string
   exposure_score?: number
+  priority_level?: number
   user?: {
     id: string
     email: string
@@ -50,7 +51,7 @@ export const INTERACTION_TYPES: InteractionType = {
   REPORT: 'report'
 }
 
-// Demo cats for when Supabase is not configured
+// Demo cats for when Supabase is not configured - expanded to ensure 20+ cats
 const demoCats: EnhancedCat[] = [
   {
     id: '1',
@@ -62,6 +63,7 @@ const demoCats: EnhancedCat[] = [
     upload_date: new Date().toISOString(),
     username: 'demo_user',
     exposure_score: 0.5,
+    priority_level: 1,
     user: { id: 'demo', email: 'demo@example.com', username: 'demo_user', created_at: new Date().toISOString() },
     cat_profile: { id: '1', name: 'Whiskers' }
   },
@@ -75,6 +77,7 @@ const demoCats: EnhancedCat[] = [
     upload_date: new Date().toISOString(),
     username: 'cat_lover',
     exposure_score: 0.3,
+    priority_level: 1,
     user: { id: 'demo', email: 'demo@example.com', username: 'cat_lover', created_at: new Date().toISOString() },
     cat_profile: { id: '2', name: 'Luna' }
   },
@@ -87,6 +90,7 @@ const demoCats: EnhancedCat[] = [
     upload_date: new Date().toISOString(),
     username: 'kitty_fan',
     exposure_score: 0.8,
+    priority_level: 2,
     user: { id: 'demo', email: 'demo@example.com', username: 'kitty_fan', created_at: new Date().toISOString() },
     cat_profile: { id: '3', name: 'Mittens' }
   },
@@ -99,6 +103,7 @@ const demoCats: EnhancedCat[] = [
     upload_date: new Date().toISOString(),
     username: 'shadow_lover',
     exposure_score: 0.2,
+    priority_level: 1,
     user: { id: 'demo', email: 'demo@example.com', username: 'shadow_lover', created_at: new Date().toISOString() },
     cat_profile: { id: '4', name: 'Shadow' }
   },
@@ -111,37 +116,53 @@ const demoCats: EnhancedCat[] = [
     upload_date: new Date().toISOString(),
     username: 'fluffy_mom',
     exposure_score: 0.6,
+    priority_level: 2,
     user: { id: 'demo', email: 'demo@example.com', username: 'fluffy_mom', created_at: new Date().toISOString() },
     cat_profile: { id: '5', name: 'Fluffy' }
-  }
+  },
+  // Add more demo cats to ensure we always have 20+
+  ...Array.from({ length: 15 }, (_, i) => ({
+    id: `demo-${i + 6}`,
+    user_id: 'demo',
+    name: `Cat ${i + 6}`,
+    caption: `Demo cat number ${i + 6} 😸`,
+    image_url: `https://images.pexels.com/photos/${1056251 + i}/pexels-photo-${1056251 + i}.jpeg?auto=compress&cs=tinysrgb&w=400`,
+    upload_date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
+    username: `user_${i + 6}`,
+    exposure_score: Math.random(),
+    priority_level: Math.floor(Math.random() * 3) + 1,
+    user: { id: 'demo', email: `user${i + 6}@example.com`, username: `user_${i + 6}`, created_at: new Date().toISOString() },
+    cat_profile: { id: `demo-${i + 6}`, name: `Cat ${i + 6}` }
+  }))
 ]
 
 class SwipeService {
   private currentSession: SwipeSession | null = null
-  private demoInteractions: Set<string> = new Set()
+  private demoInteractions: Map<string, Set<string>> = new Map() // userId -> Set of catIds
+  private demoSessionCounter = 0
 
   /**
-   * Get randomized cats for the current user session
+   * Get randomized cats for the current user session - ALWAYS returns exactly 20 photos
    */
   async getRandomizedCats(
     userId: string, 
     limit: number = 20, 
-    excludeInteracted: boolean = true
+    usePrioritization: boolean = true
   ): Promise<EnhancedCat[]> {
     try {
       if (isDemoMode) {
-        return this.getDemoCats(limit, excludeInteracted)
+        return this.getDemoCats(userId, limit, usePrioritization)
       }
 
       // Get or create current session
       const session = await this.getCurrentSession(userId)
       
-      // Call the database function for smart randomization
+      // Call the database function for smart prioritization
       const { data, error } = await supabase.rpc('get_randomized_cats_for_user', {
         p_user_id: userId,
         p_session_id: session.id,
         p_limit: limit,
-        p_exclude_interacted: excludeInteracted
+        p_use_prioritization: usePrioritization
       })
 
       if (error) {
@@ -164,11 +185,16 @@ class SwipeService {
         } : undefined
       }))
 
+      // Ensure we always return exactly the requested limit
+      if (enhancedCats.length < limit) {
+        console.warn(`Only ${enhancedCats.length} cats available, requested ${limit}`)
+      }
+
       return enhancedCats
     } catch (error) {
       console.error('Error in getRandomizedCats:', error)
       // Fallback to demo cats on error
-      return this.getDemoCats(limit, excludeInteracted)
+      return this.getDemoCats(userId, limit, usePrioritization)
     }
   }
 
@@ -183,7 +209,10 @@ class SwipeService {
   ): Promise<string | null> {
     try {
       if (isDemoMode) {
-        this.demoInteractions.add(`${userId}-${catId}-${interactionType}`)
+        if (!this.demoInteractions.has(userId)) {
+          this.demoInteractions.set(userId, new Set())
+        }
+        this.demoInteractions.get(userId)!.add(`${catId}-${interactionType}`)
         console.log(`Demo interaction recorded: ${interactionType} on cat ${catId}`)
         return `demo-${Date.now()}`
       }
@@ -275,9 +304,10 @@ class SwipeService {
   async startNewSession(userId: string): Promise<SwipeSession> {
     try {
       if (isDemoMode) {
-        this.demoInteractions.clear()
+        this.demoSessionCounter++
+        // Don't clear interactions completely, just start fresh session
         return {
-          id: `demo-${Date.now()}`,
+          id: `demo-session-${this.demoSessionCounter}`,
           user_id: userId,
           started_at: new Date().toISOString(),
           last_activity: new Date().toISOString(),
@@ -323,12 +353,13 @@ class SwipeService {
   async getUserStats(userId: string): Promise<any> {
     try {
       if (isDemoMode) {
+        const userInteractions = this.demoInteractions.get(userId) || new Set()
         return {
-          cats_viewed: this.demoInteractions.size,
-          swipes_right: 0,
-          swipes_left: 0,
-          emoji_reactions: 0,
-          total_sessions: 1,
+          cats_viewed: userInteractions.size,
+          swipes_right: Array.from(userInteractions).filter(i => i.includes('swipe_right')).length,
+          swipes_left: Array.from(userInteractions).filter(i => i.includes('swipe_left')).length,
+          emoji_reactions: Array.from(userInteractions).filter(i => i.includes('emoji_reaction')).length,
+          total_sessions: this.demoSessionCounter,
           last_activity: new Date().toISOString()
         }
       }
@@ -359,24 +390,101 @@ class SwipeService {
   }
 
   /**
-   * Demo mode cat randomization
+   * Get photo priority statistics for debugging
    */
-  private getDemoCats(limit: number, excludeInteracted: boolean): EnhancedCat[] {
-    let availableCats = [...demoCats]
+  async getPhotoPriorityStats(userId: string): Promise<any> {
+    try {
+      if (isDemoMode) {
+        return [
+          { priority_level: 1, photo_count: 10, description: 'Never seen' },
+          { priority_level: 2, photo_count: 5, description: 'Seen but no interaction' },
+          { priority_level: 3, photo_count: 5, description: 'Previously interacted' }
+        ]
+      }
 
-    if (excludeInteracted) {
-      availableCats = availableCats.filter(cat => 
-        !this.demoInteractions.has(`demo-${cat.id}-view`)
+      const { data, error } = await supabase.rpc('get_photo_priority_stats', {
+        p_user_id: userId
+      })
+
+      if (error) {
+        console.error('Error fetching priority stats:', error)
+        return []
+      }
+
+      return data || []
+    } catch (error) {
+      console.error('Error in getPhotoPriorityStats:', error)
+      return []
+    }
+  }
+
+  /**
+   * Demo mode cat selection with smart prioritization - ALWAYS returns exactly 20 cats
+   */
+  private getDemoCats(userId: string, limit: number, usePrioritization: boolean): EnhancedCat[] {
+    const userInteractions = this.demoInteractions.get(userId) || new Set()
+    
+    if (!usePrioritization) {
+      // Simple randomization
+      const shuffled = [...demoCats].sort(() => Math.random() - 0.5)
+      return shuffled.slice(0, Math.min(limit, shuffled.length))
+    }
+
+    // Smart prioritization for demo mode
+    const categorizedCats = {
+      neverSeen: [] as EnhancedCat[],
+      seenButNoInteraction: [] as EnhancedCat[],
+      previouslyInteracted: [] as EnhancedCat[]
+    }
+
+    demoCats.forEach(cat => {
+      const hasAnyInteraction = Array.from(userInteractions).some(interaction => 
+        interaction.startsWith(cat.id)
       )
+      const hasNonViewInteraction = Array.from(userInteractions).some(interaction => 
+        interaction.startsWith(cat.id) && !interaction.includes('view')
+      )
+
+      if (!hasAnyInteraction) {
+        categorizedCats.neverSeen.push({ ...cat, priority_level: 1 })
+      } else if (!hasNonViewInteraction) {
+        categorizedCats.seenButNoInteraction.push({ ...cat, priority_level: 2 })
+      } else {
+        categorizedCats.previouslyInteracted.push({ ...cat, priority_level: 3 })
+      }
+    })
+
+    // Shuffle each category
+    Object.values(categorizedCats).forEach(category => {
+      category.sort(() => Math.random() - 0.5)
+    })
+
+    // Fill the limit with priority order
+    const result: EnhancedCat[] = []
+    
+    // Priority 1: Never seen
+    result.push(...categorizedCats.neverSeen.slice(0, limit - result.length))
+    
+    // Priority 2: Seen but no interaction
+    if (result.length < limit) {
+      result.push(...categorizedCats.seenButNoInteraction.slice(0, limit - result.length))
+    }
+    
+    // Priority 3: Previously interacted
+    if (result.length < limit) {
+      result.push(...categorizedCats.previouslyInteracted.slice(0, limit - result.length))
     }
 
-    // Shuffle array for randomization
-    for (let i = availableCats.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [availableCats[i], availableCats[j]] = [availableCats[j], availableCats[i]]
+    // If we still don't have enough, cycle through all cats again
+    if (result.length < limit) {
+      const remaining = [...demoCats].filter(cat => 
+        !result.some(r => r.id === cat.id)
+      )
+      remaining.sort(() => Math.random() - 0.5)
+      result.push(...remaining.slice(0, limit - result.length))
     }
 
-    return availableCats.slice(0, limit)
+    return result.slice(0, limit)
   }
 
   /**
@@ -385,6 +493,7 @@ class SwipeService {
   clearSession(): void {
     this.currentSession = null
     this.demoInteractions.clear()
+    this.demoSessionCounter = 0
   }
 }
 
