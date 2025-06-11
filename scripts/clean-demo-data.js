@@ -6,20 +6,87 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Try to load environment variables from multiple locations
-dotenv.config({ path: path.join(__dirname, '.env') })
-dotenv.config({ path: path.join(__dirname, '..', '.env') })
+// Debug environment variable loading
+console.log('🔍 Debugging environment variable loading...')
+console.log('Current working directory:', process.cwd())
+console.log('Script directory:', __dirname)
+
+// Try to load environment variables from multiple locations with detailed logging
+const envPaths = [
+  path.join(__dirname, '.env'),
+  path.join(__dirname, '..', '.env'),
+  path.join(process.cwd(), '.env'),
+  path.join(process.cwd(), 'scripts', '.env')
+]
+
+console.log('🔍 Trying to load .env files from:')
+envPaths.forEach((envPath, index) => {
+  console.log(`  ${index + 1}. ${envPath}`)
+  try {
+    const result = dotenv.config({ path: envPath })
+    if (result.error) {
+      console.log(`     ❌ Failed: ${result.error.message}`)
+    } else {
+      console.log(`     ✅ Loaded successfully`)
+    }
+  } catch (error) {
+    console.log(`     ❌ Error: ${error.message}`)
+  }
+})
+
+// Also try loading from process.env directly
+console.log('\n🔍 Checking process.env directly...')
+console.log('VITE_SUPABASE_URL exists:', !!process.env.VITE_SUPABASE_URL)
+console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+
+// Show partial values for debugging (first 20 chars)
+if (process.env.VITE_SUPABASE_URL) {
+  console.log('VITE_SUPABASE_URL preview:', process.env.VITE_SUPABASE_URL.substring(0, 30) + '...')
+}
+if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.log('SUPABASE_SERVICE_ROLE_KEY preview:', process.env.SUPABASE_SERVICE_ROLE_KEY.substring(0, 20) + '...')
+}
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+console.log('\n🔍 Final variable check:')
+console.log('supabaseUrl:', supabaseUrl ? 'SET' : 'NOT SET')
+console.log('supabaseServiceKey:', supabaseServiceKey ? 'SET' : 'NOT SET')
+
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Missing Supabase configuration.')
+  console.error('\n❌ Missing Supabase configuration.')
   console.error('Please ensure you have a .env file with:')
   console.error('VITE_SUPABASE_URL=your_supabase_url')
   console.error('SUPABASE_SERVICE_ROLE_KEY=your_service_role_key')
+  console.error('')
+  console.error('The .env file should be in one of these locations:')
+  envPaths.forEach((envPath, index) => {
+    console.error(`  ${index + 1}. ${envPath}`)
+  })
+  console.error('')
+  console.error('Note: You need the SERVICE ROLE KEY, not the anon key!')
   process.exit(1)
 }
+
+if (supabaseServiceKey === 'your_service_role_key_here') {
+  console.error('❌ Please replace "your_service_role_key_here" with your actual Supabase service role key.')
+  console.error('You can find this in your Supabase dashboard under Settings > API.')
+  process.exit(1)
+}
+
+// Validate URL format
+try {
+  new URL(supabaseUrl)
+} catch (error) {
+  console.error('❌ Invalid Supabase URL format:', supabaseUrl)
+  console.error('URL should start with https:// and be a valid URL')
+  process.exit(1)
+}
+
+console.log('\n✅ Environment variables loaded successfully')
+console.log(`URL: ${supabaseUrl}`)
+console.log(`Service Key: ${supabaseServiceKey.substring(0, 20)}...`)
 
 // Create Supabase client with extended timeout and retry settings
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -108,7 +175,7 @@ async function testConnection() {
 
 async function cleanDemoData() {
   try {
-    console.log('🧹 Starting comprehensive demo data cleanup...')
+    console.log('\n🧹 Starting comprehensive demo data cleanup...')
     
     // Test connection with multiple attempts
     let connectionOk = false
@@ -125,6 +192,14 @@ async function cleanDemoData() {
     
     if (!connectionOk) {
       console.error('❌ Cannot proceed without a working connection to Supabase')
+      console.error('')
+      console.error('💡 Troubleshooting checklist:')
+      console.error('   ✓ Check your internet connection')
+      console.error('   ✓ Verify VITE_SUPABASE_URL is correct and starts with https://')
+      console.error('   ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
+      console.error('   ✓ Ensure Supabase project is active')
+      console.error('   ✓ Check for firewall/proxy blocking connections')
+      console.error('   ✓ Verify .env file exists and is readable')
       process.exit(1)
     }
     
@@ -137,11 +212,16 @@ async function cleanDemoData() {
       authError = result.error
     } catch (error) {
       console.error('❌ Failed to list users:', error.message)
+      console.error('This usually means the service role key is incorrect or expired.')
+      console.error('Please verify your SUPABASE_SERVICE_ROLE_KEY in the .env file.')
       process.exit(1)
     }
     
     if (authError) {
       console.error('❌ Auth error:', authError.message)
+      if (authError.message.includes('JWT')) {
+        console.error('This indicates an invalid or expired service role key.')
+      }
       process.exit(1)
     }
     
