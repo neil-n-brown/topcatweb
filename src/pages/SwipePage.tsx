@@ -109,12 +109,20 @@ export default function SwipePage() {
     const currentCat = cats[currentIndex]
     if (!currentCat || !user) return
 
+    // Determine interaction type
+    const interactionType = direction === 'right' 
+      ? INTERACTION_TYPES.SWIPE_RIGHT 
+      : INTERACTION_TYPES.SWIPE_LEFT
+
+    // Debug log for swipe right and love button
+    console.log('Recording interaction:', {
+      userId: user.id,
+      catId: currentCat.id,
+      interactionType
+    })
+
     try {
       // Record the swipe interaction
-      const interactionType = direction === 'right' 
-        ? INTERACTION_TYPES.SWIPE_RIGHT 
-        : INTERACTION_TYPES.SWIPE_LEFT
-
       await swipeService.recordInteraction(
         user.id,
         currentCat.id,
