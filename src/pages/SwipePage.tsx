@@ -5,7 +5,6 @@ import SwipeCard from '../components/SwipeCard'
 import EmojiPicker from '../components/EmojiPicker'
 import { swipeService, EnhancedCat, INTERACTION_TYPES } from '../lib/swipeService'
 import { useAuth } from '../contexts/AuthContext'
-import { isDemoMode } from '../lib/supabase'
 
 export default function SwipePage() {
   const { user } = useAuth()
@@ -43,7 +42,7 @@ export default function SwipePage() {
       console.log(`Received ${randomizedCats.length} cats`)
 
       if (randomizedCats.length === 0) {
-        setError('No cat photos available. Please check back later or try uploading some cats!')
+        setError('No cats available. Please check back later!')
         setCats([])
       } else {
         setCats(randomizedCats)
@@ -166,12 +165,6 @@ export default function SwipePage() {
     const currentCat = cats[currentIndex]
     if (!currentCat || !user) return
 
-    if (isDemoMode) {
-      alert('Demo mode - reporting is not available 😸')
-      setCurrentIndex(prev => prev + 1)
-      return
-    }
-
     try {
       await swipeService.recordInteraction(
         user.id,
@@ -228,17 +221,6 @@ export default function SwipePage() {
           <h2 className="text-2xl font-bold text-cute-primary mb-4">No Cats Available</h2>
           <p className="text-cute-secondary mb-6 leading-relaxed">{error}</p>
           
-          {isDemoMode && (
-            <div className="mb-6 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-                <p className="text-yellow-800 text-sm">
-                  Demo Mode: Connect to Supabase and run the seeding script to populate with cat photos.
-                </p>
-              </div>
-            </div>
-          )}
-          
           <button
             onClick={() => fetchCats(true)}
             className="btn-cute hover-bounce flex items-center space-x-2"
@@ -291,7 +273,7 @@ export default function SwipePage() {
             ) : (
               <>
                 <RefreshCw className="w-4 h-4" />
-                <span>Get Fresh 20 Cats</span>
+                <span>Meow Again!</span>
                 <span className="text-xl">🔄</span>
               </>
             )}
@@ -305,17 +287,6 @@ export default function SwipePage() {
 
   return (
     <div className="min-h-screen flex flex-col pb-20 md:pb-0 md:pl-72">
-      {/* Demo mode indicator */}
-      {isDemoMode && (
-        <div className="alert-cute-warning p-4 text-center border-b border-yellow-300">
-          <p className="font-medium flex items-center justify-center">
-            <span className="text-2xl mr-2">🎮</span>
-            Demo Mode - Smart prioritization active! Always shows exactly 20 cats.
-            <span className="text-2xl ml-2">😸</span>
-          </p>
-        </div>
-      )}
-
       {/* Header with stats and refresh */}
       <div className="text-center py-4 relative z-10">
         <div className="flex items-center justify-between max-w-sm mx-auto px-4">
