@@ -36,7 +36,7 @@ BEGIN
     -- Update session activity
     UPDATE swipe_sessions 
     SET last_activity = now(), is_active = true
-    WHERE id = v_session_id AND user_id = p_user_id;
+    WHERE swipe_sessions.id = v_session_id AND swipe_sessions.user_id = p_user_id;
   END IF;
 
   -- Ensure all cats have exposure records
