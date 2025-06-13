@@ -178,21 +178,21 @@ BEGIN
           AND ui.interaction_type != 'view'
         ) THEN 2
         ELSE 3
-      END as priority_level
+      END as cat_priority_level
     FROM cats c
     WHERE c.user_id != p_user_id
   )
   SELECT 
-    priority_level,
+    cp.cat_priority_level as priority_level,
     COUNT(*) as photo_count,
     CASE 
-      WHEN priority_level = 1 THEN 'Never seen'
-      WHEN priority_level = 2 THEN 'Seen but no interaction'
+      WHEN cp.cat_priority_level = 1 THEN 'Never seen'
+      WHEN cp.cat_priority_level = 2 THEN 'Seen but no interaction'
       ELSE 'Previously interacted'
     END as description
-  FROM cat_priorities
-  GROUP BY priority_level
-  ORDER BY priority_level;
+  FROM cat_priorities cp
+  GROUP BY cp.cat_priority_level
+  ORDER BY cp.cat_priority_level;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
