@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { Heart, Mail, Lock, User, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { isDemoMode, authHelpers } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 
 export default function AuthPage() {
-  const { signUp, signIn, resetPassword, error, clearError, refreshSession } = useAuth()
+  const { signUp, signIn, resetPassword, error, clearError, refreshSession, setError } = useAuth()
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -47,7 +48,13 @@ export default function AuthPage() {
         await signUp(email, password, username.trim())
         setMessage('Account created successfully! Please check your email to verify your account. 📧✨')
       } else if (mode === 'signin') {
-        await signIn(email, password)
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+        if (signInError) {
+          throw signInError
+        }
       } else if (mode === 'reset') {
         await resetPassword(email)
         setMessage('Password reset email sent! Check your inbox. 📬💕')
@@ -76,6 +83,7 @@ export default function AuthPage() {
       }
       
       setMessage(errorMessage)
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -93,7 +101,7 @@ export default function AuthPage() {
     }
   }
 
-  const displayMessage = message || error
+  const displayMessage = message
 
   return (
     <div className="min-h-screen bg-cute-gradient flex items-center justify-center p-4 relative overflow-hidden">

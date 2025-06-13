@@ -14,6 +14,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>
   refreshSession: () => Promise<void>
   clearError: () => void
+  setError: (error: string) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -268,6 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     refreshSession,
     clearError,
+    setError,
   }
 
   return (
