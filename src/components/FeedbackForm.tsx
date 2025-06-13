@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface FeedbackFormProps {
   isOpen: boolean;
@@ -19,11 +20,16 @@ export default function FeedbackForm({ isOpen, onClose }: FeedbackFormProps) {
     setSubmitStatus('idle');
 
     try {
+      // Get the session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session) throw new Error('No active session');
+
       const response = await fetch('https://hgkjibevclwbwtzxezid.supabase.co/functions/v1/feedback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           feedback,
@@ -33,7 +39,8 @@ export default function FeedbackForm({ isOpen, onClose }: FeedbackFormProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit feedback');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit feedback');
       }
 
       setSubmitStatus('success');
@@ -47,6 +54,7 @@ export default function FeedbackForm({ isOpen, onClose }: FeedbackFormProps) {
         setSubmitStatus('idle');
       }, 2000);
     } catch (error) {
+      console.error('Error submitting feedback:', error);
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);
