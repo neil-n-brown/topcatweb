@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,72 +43,46 @@ serve(async (req) => {
       throw new Error('Feedback is required')
     }
 
-    // Log SMTP configuration (without sensitive data)
-    console.log('SMTP Configuration:', {
-      hostname: Deno.env.get('SMTP_HOSTNAME'),
-      port: Deno.env.get('SMTP_PORT'),
-      from: Deno.env.get('SMTP_FROM'),
-      hasUsername: !!Deno.env.get('SMTP_USERNAME'),
-      hasPassword: !!Deno.env.get('SMTP_PASSWORD'),
-    })
+    // Prepare email content
+    const subject = 'New Feedback from Top Cat Website'
+    const content = `
+      New feedback received from user ${user.email}:
+      
+      Feedback: ${feedback}
+      Suggests Feature: ${suggestFeature ? 'Yes' : 'No'}
+      Technical Issue: ${technicalIssue ? 'Yes' : 'No'}
+      
+      Timestamp: ${new Date().toISOString()}
+    `
 
-    // Create SMTP client with explicit configuration
-    const client = new SmtpClient()
-    try {
-      // Configure SMTP with explicit TLS settings
-      await client.connectTLS({
-        hostname: Deno.env.get('SMTP_HOSTNAME') || '',
-        port: parseInt(Deno.env.get('SMTP_PORT') || '587'),
-        username: Deno.env.get('SMTP_USERNAME') || '',
-        password: Deno.env.get('SMTP_PASSWORD') || '',
-        tls: {
-          rejectUnauthorized: false, // Allow self-signed certificates
-        },
-      })
-
-      // Prepare email content
-      const subject = 'New Feedback from Top Cat Website'
-      const content = `
-        New feedback received from user ${user.email}:
-        
-        Feedback: ${feedback}
-        Suggests Feature: ${suggestFeature ? 'Yes' : 'No'}
-        Technical Issue: ${technicalIssue ? 'Yes' : 'No'}
-        
-        Timestamp: ${new Date().toISOString()}
-      `
-
-      // Send email with explicit configuration
-      await client.send({
-        from: Deno.env.get('SMTP_FROM') || '',
+    // Send email using Resend
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Top Cat <feedback@topcat.com>',
         to: 'knollybwai@gmail.com',
         subject,
-        content,
-        html: content.replace(/\n/g, '<br>'), // Add HTML version
-        headers: {
-          'Content-Type': 'text/plain; charset=UTF-8',
-        },
-      })
+        text: content,
+        html: content.replace(/\n/g, '<br>'),
+      }),
+    })
 
-      await client.close()
-
-      return new Response(
-        JSON.stringify({ message: 'Feedback sent successfully' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      )
-    } catch (smtpError) {
-      console.error('SMTP Error:', smtpError)
-      // Log more detailed error information
-      if (smtpError instanceof Error) {
-        console.error('Error name:', smtpError.name)
-        console.error('Error message:', smtpError.message)
-        console.error('Error stack:', smtpError.stack)
-      }
-      throw new Error(`Failed to send email: ${smtpError.message}`)
+    if (!resendResponse.ok) {
+      const errorData = await resendResponse.json()
+      throw new Error(`Failed to send email: ${errorData.message || 'Unknown error'}`)
     }
+
+    return new Response(
+      JSON.stringify({ message: 'Feedback sent successfully' }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    )
   } catch (error) {
     console.error('Error:', error.message)
     return new Response(
