@@ -187,8 +187,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(error.message)
         throw error
       }
+    } catch (error: any) {
+      setError(error.message)
+      throw error
     } finally {
-      // Don't set loading to false here - let auth state change handle it
+      setLoading(false)
     }
   }
 
