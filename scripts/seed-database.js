@@ -22,17 +22,18 @@ if (!supabaseUrl || !supabaseServiceKey) {
   console.error('VITE_SUPABASE_URL=your_supabase_url')
   console.error('SUPABASE_SERVICE_ROLE_KEY=your_service_role_key')
   console.error('')
+  console.error('Note: You need the SERVICE ROLE KEY, not the anon key!')
   console.error('The .env file should be in either:')
   console.error('- scripts/.env (current directory)')
   console.error('- .env (project root)')
   console.error('')
-  console.error('Note: You need the SERVICE ROLE KEY, not the anon key!')
   process.exit(1)
 }
 
 if (supabaseServiceKey === 'your_service_role_key_here') {
   console.error('❌ Please replace "your_service_role_key_here" with your actual Supabase service role key.')
   console.error('You can find this in your Supabase dashboard under Settings > API.')
+  console.error('')
   process.exit(1)
 }
 
@@ -64,23 +65,23 @@ const catNames = [
 
 // Funny captions written by female cat lovers
 const catCaptions = [
-  "When your cat gives you THAT look and you know you're in trouble 😹",
+  "When your cat gives you THAT look and you know you're in trouble 😼",
   "My therapist: 'Your cat can't actually judge you.' My cat: 👁️👄👁️",
   "POV: You opened a can of tuna and suddenly have a best friend 🐟💕",
   "This is my 'I knocked something off your desk' face 😇",
-  "Caught red-pawed destroying the toilet paper... again 🧻😅",
-  "When you realize the red dot will never be caught but you must try anyway 🔴",
+  "Caught red-pawed destroying the toilet paper... again 🧻😈",
+  "When you realize the red dot will never be caught but you must try anyway ❤️",
   "My cat's daily schedule: Sleep, judge humans, knock things over, repeat 😴",
-  "That moment when you find the PERFECT nap spot ☀️😻",
-  "My human thinks they own me... how adorable 👑",
-  "Excuse me, this is MY chair now. You may find somewhere else to sit 💺",
-  "When someone says they're a dog person in front of me 🙄",
+  "That moment when you find the PERFECT nap spot 💤",
+  "My human thinks they own me... how adorable 😸",
+  "Excuse me, this is MY chair now. You may find somewhere else to sit 🪑",
+  "When someone says they're a dog person in front of me 😤",
   "3AM zoomies because why sleep when you can ZOOM? 🏃‍♀️💨",
   "My face when the food bowl is only 90% full 😤",
   "Plotting world domination from my cardboard fortress 📦👑",
-  "When you hear the treat bag crinkle from three rooms away 👂✨",
+  "When you hear the treat bag crinkle from three rooms away 👂",
   "This box is clearly made for me, regardless of size 📦😸",
-  "My human's keyboard makes the perfect bed, obviously ⌨️😴",
+  "My human's keyboard makes the perfect bed, obviously 💻😴",
   "When you're trying to be photogenic but your personality shows 📸",
   "That 'I definitely didn't break anything' innocent face 😇",
   "Sunbathing is a full-time job and I take it very seriously ☀️",
@@ -88,22 +89,19 @@ const catCaptions = [
   "Professional bird watcher and window supervisor 🐦👀",
   "When you realize you're out of treats and must resort to being cute 🥺",
   "This is my 'feed me or I'll knock everything off the counter' look 😼",
-  "Caught in 4K being absolutely adorable 📹💕",
   "My human bought me a $50 bed but this cardboard box hits different 📦",
-  "When you're trying to work from home but your supervisor has other plans 💻😹",
-  "That post-grooming glow ✨🛁",
-  "My face when someone tries to move me during my 18th nap of the day 😴",
-  "Professional treat quality inspector reporting for duty 🕵️‍♀️",
-  "This is my 'I love you but also give me space' face 😽",
-  "When you find the one warm spot in the entire house ☀️😻",
-  "My human thinks they're the boss... how cute 😏",
-  "Caught being a perfect angel (for once) 😇✨",
-  "This is my 'I'm not spoiled, I'm just well-loved' pose 💅",
-  "When you realize the vacuum is coming out and it's time to HIDE 🏃‍♀️💨",
+  "When you're trying to work from home but your supervisor has other plans 💻🐾",
+  "That post-grooming glow ✨😸",
   "My daily meditation: staring at the wall for no reason 🧘‍♀️",
-  "That 'I definitely belong on this expensive furniture' energy 🛋️👑",
-  "Professional lap warmer and purr machine at your service 🥰",
-  "This is my 'I'm judging your life choices' face 🤨"
+  "When you realize the vacuum is coming out and it's time to HIDE 🏃‍♀️💨",
+  "This is my 'I'm not spoiled, I'm just well-loved' pose 💅",
+  "Professional treat quality inspector reporting for duty 🔍",
+  "This is my 'I love you but also give me space' face 😽",
+  "When you find the one warm spot in the entire house 🔥",
+  "My human thinks they're the boss... how cute 😂",
+  "Professional lap warmer and purr machine at your service 😻",
+  "This is my 'I'm judging your life choices' face 😒",
+  "When you realize you're out of treats and must resort to being cute 😇"
 ]
 
 // Demo user data - female cat lovers with realistic usernames
@@ -215,7 +213,6 @@ const catBreeds = [
   'Domestic Shorthair', 'Domestic Longhair', 'Maine Coon', 'Persian', 'Siamese',
   'British Shorthair', 'Ragdoll', 'Bengal', 'Russian Blue', 'Scottish Fold',
   'Abyssinian', 'American Shorthair', 'Oriental', 'Birman', 'Burmese',
-  'Norwegian Forest Cat', 'Turkish Angora', 'Exotic Shorthair', 'Devon Rex',
   'Cornish Rex', 'Manx', 'Munchkin', 'Sphynx', 'Tonkinese', 'Bombay'
 ]
 
@@ -242,22 +239,22 @@ async function uploadLocalImageToSupabase(localImagePath, fileName, userId, maxR
       const fileBuffer = fs.readFileSync(localImagePath)
       const fileExt = path.extname(fileName)
       const uniqueFileName = `${userId}-${Date.now()}${fileExt}`
-      
+
       const { data, error } = await supabase.storage
         .from('cat-photos')
         .upload(uniqueFileName, fileBuffer, {
           contentType: 'image/jpeg',
           upsert: false
         })
-      
+
       if (error) {
         throw error
       }
-      
+
       const { data: { publicUrl } } = supabase.storage
         .from('cat-photos')
         .getPublicUrl(uniqueFileName)
-      
+
       console.log(`✅ Uploaded local image to Supabase: ${uniqueFileName}`)
       return publicUrl
     } catch (error) {
@@ -268,10 +265,9 @@ async function uploadLocalImageToSupabase(localImagePath, fileName, userId, maxR
         await new Promise(resolve => setTimeout(resolve, attempt * 2000))
         continue
       }
-      
-      return null
     }
   }
+  
   return null
 }
 
@@ -291,13 +287,13 @@ async function createUserAccount(userData, maxRetries = 3) {
           is_demo_account: true
         }
       })
-      
+
       if (authError) {
         throw authError
       }
-      
+
       const userId = authData.user.id
-      
+
       // Create user profile
       const { error: profileError } = await supabase
         .from('users')
@@ -307,11 +303,11 @@ async function createUserAccount(userData, maxRetries = 3) {
           username: userData.username,
           created_at: new Date().toISOString()
         }])
-      
+
       if (profileError) {
         throw profileError
       }
-      
+
       console.log(`✅ Created user: ${userData.username} (${userId})`)
       return userId
     } catch (error) {
@@ -322,10 +318,9 @@ async function createUserAccount(userData, maxRetries = 3) {
         await new Promise(resolve => setTimeout(resolve, attempt * 2000))
         continue
       }
-      
-      return null
     }
   }
+  
   return null
 }
 
@@ -334,7 +329,7 @@ async function createCatProfile(userId, catName, breed, photoNumber, maxRetries 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Creating cat profile for ${catName}... (attempt ${attempt}/${maxRetries})`)
-      
+
       const ages = ['6 months', '1 year', '2 years', '3 years', '4 years', '5 years', '6 years', '7 years']
       const sexes = ['Male', 'Female']
       const personalities = [
@@ -347,18 +342,18 @@ async function createCatProfile(userId, catName, breed, photoNumber, maxRetries 
         'Adventurous and bold',
         'Lazy and cuddly'
       ]
-      
+
       // Upload profile picture from local files
       let profilePictureUrl = null
       if (photoNumber) {
         const localImagePath = getLocalCatPhotoPath(photoNumber)
         profilePictureUrl = await uploadLocalImageToSupabase(
-          localImagePath, 
-          `profile_${catName.toLowerCase()}.jpg`, 
+          localImagePath,
+          `profile_${catName.toLowerCase()}.jpg`,
           userId
         )
       }
-      
+
       const { data, error } = await supabase
         .from('cat_profiles')
         .insert([{
@@ -376,11 +371,11 @@ async function createCatProfile(userId, catName, breed, photoNumber, maxRetries 
         }])
         .select()
         .single()
-      
+
       if (error) {
         throw error
       }
-      
+
       console.log(`✅ Created cat profile: ${catName} (${data.id})`)
       return data.id
     } catch (error) {
@@ -391,10 +386,9 @@ async function createCatProfile(userId, catName, breed, photoNumber, maxRetries 
         await new Promise(resolve => setTimeout(resolve, attempt * 2000))
         continue
       }
-      
-      return null
     }
   }
+  
   return null
 }
 
@@ -403,27 +397,27 @@ async function createCatPhoto(userId, catProfileId, catName, photoNumber, captio
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Creating photo for ${catName} using local image ${photoNumber}... (attempt ${attempt}/${maxRetries})`)
-      
+
       // Get local image path
       const localImagePath = getLocalCatPhotoPath(photoNumber)
-      
+
       if (!fs.existsSync(localImagePath)) {
         console.error(`❌ Local image not found: ${localImagePath}`)
         return null
       }
-      
+
       // Upload to Supabase
       const uploadedImageUrl = await uploadLocalImageToSupabase(
-        localImagePath, 
-        `${catName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}.jpg`, 
+        localImagePath,
+        `${catName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}.jpg`,
         userId
       )
-      
+
       if (!uploadedImageUrl) {
         console.error(`❌ Failed to upload image for ${catName}`)
         return null
       }
-      
+
       // Create cat photo record
       const { data, error } = await supabase
         .from('cats')
@@ -436,11 +430,11 @@ async function createCatPhoto(userId, catProfileId, catName, photoNumber, captio
         }])
         .select()
         .single()
-      
+
       if (error) {
         throw error
       }
-      
+
       console.log(`✅ Created photo for ${catName}: ${caption}`)
       return data.id
     } catch (error) {
@@ -451,26 +445,25 @@ async function createCatPhoto(userId, catProfileId, catName, photoNumber, captio
         await new Promise(resolve => setTimeout(resolve, attempt * 2000))
         continue
       }
-      
-      return null
     }
   }
+  
   return null
 }
 
-// Function to create reactions with retry logic
+// Function to create reactions with retry logic - UPDATED FOR MAX 3 REACTIONS
 async function createReactions(catIds, userIds) {
   try {
     console.log('Creating reactions...')
-    
+
     const reactions = []
-    const emojis = ['❤️', '😻', '😸', '😹', '😺', '💕', '🥰', '😍', '🤩', '⭐']
-    
+    const emojis = ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💗']
+
     for (const catId of catIds) {
-      // Each cat gets 5-25 random reactions
-      const numReactions = Math.floor(Math.random() * 20) + 5
+      // Each cat gets 0-3 random reactions (changed from 5-25)
+      const numReactions = Math.floor(Math.random() * 4) // 0, 1, 2, or 3 reactions
       const reactingUsers = [...userIds].sort(() => 0.5 - Math.random()).slice(0, numReactions)
-      
+
       for (const userId of reactingUsers) {
         const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)]
         reactions.push({
@@ -481,7 +474,7 @@ async function createReactions(catIds, userIds) {
         })
       }
     }
-    
+
     // Insert reactions in batches with retry logic
     const batchSize = 100
     for (let i = 0; i < reactions.length; i += batchSize) {
@@ -493,28 +486,31 @@ async function createReactions(catIds, userIds) {
           const { error } = await supabase
             .from('reactions')
             .insert(batch)
-          
+
           if (error) {
             throw error
+          } else {
+            console.log(`✅ Created reaction batch completed successfully`)
+            success = true
+            break
           }
-          
-          success = true
-          break
         } catch (error) {
-          console.error(`Error inserting reaction batch (attempt ${attempt}/3):`, error.message)
-          
-          if (attempt < 3 && (error.message.includes('fetch failed') || error.message.includes('network'))) {
-            console.log(`⏳ Retrying batch in ${attempt * 2} seconds...`)
-            await new Promise(resolve => setTimeout(resolve, attempt * 2000))
-          }
+          console.error(`❌ Error inserting reaction batch (attempt ${attempt}/3):`, error.message)
+        }
+
+        if (attempt < 3 && (error.message.includes('fetch failed') || error.message.includes('network'))) {
+          console.log(`⏳ Retrying batch insertion in ${attempt * 2} seconds...`)
+          await new Promise(resolve => setTimeout(resolve, attempt * 2000))
+          continue
         }
       }
-      
+
       if (!success) {
-        console.warn(`⚠️ Failed to insert reaction batch after 3 attempts`)
+        console.error(`❌ Failed to insert reaction batch after 3 attempts`)
+        return false
       }
     }
-    
+
     console.log(`✅ Created ${reactions.length} reactions`)
   } catch (error) {
     console.error('❌ Error creating reactions:', error)
@@ -525,10 +521,8 @@ async function createReactions(catIds, userIds) {
 async function testConnection() {
   try {
     console.log('🔗 Testing Supabase connection...')
-    console.log(`URL: ${supabaseUrl}`)
-    console.log(`Service Key: ${supabaseServiceKey.substring(0, 20)}...`)
-    
     const { data, error } = await supabase.from('users').select('count').limit(1)
+    
     if (error) {
       console.error('❌ Connection test failed:', error.message)
       if (error.details) {
@@ -539,6 +533,7 @@ async function testConnection() {
       }
       return false
     }
+    
     console.log('✅ Connection test successful')
     return true
   } catch (error) {
@@ -557,12 +552,12 @@ async function testConnection() {
 async function seedDatabase() {
   try {
     console.log('🌱 Starting database seeding with LOCAL cat photos...')
-    console.log(`📸 Using 20 local cat photos from public folder`)
-    
+    console.log('📸 Using 20 local cat photos from public folder')
+
     // Test connection first with multiple attempts
     let connectionOk = false
     for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`🔗 Connection attempt ${attempt}/3...`)
+      console.log(`🔄 Connection attempt ${attempt}/3...`)
       connectionOk = await testConnection()
       if (connectionOk) break
       
@@ -571,20 +566,20 @@ async function seedDatabase() {
         await new Promise(resolve => setTimeout(resolve, attempt * 3000))
       }
     }
-    
+
     if (!connectionOk) {
       console.error('❌ Cannot proceed without a working connection to Supabase')
       console.error('')
-      console.error('💡 Troubleshooting checklist:')
-      console.error('   ✓ Check your internet connection')
-      console.error('   ✓ Verify VITE_SUPABASE_URL is correct and starts with https://')
-      console.error('   ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
-      console.error('   ✓ Ensure Supabase project is active')
-      console.error('   ✓ Check for firewall/proxy blocking connections')
-      console.error('   ✓ Verify .env file exists in scripts/ or project root')
+      console.error('Troubleshooting checklist:')
+      console.error('  ✓ Check your internet connection')
+      console.error('  ✓ Verify VITE_SUPABASE_URL is correct and starts with https://')
+      console.error('  ✓ Confirm SUPABASE_SERVICE_ROLE_KEY is valid (not anon key)')
+      console.error('  ✓ Ensure Supabase project is active')
+      console.error('  ✓ Check for firewall/proxy blocking connections')
+      console.error('  ✓ Verify .env file exists in scripts/ or project root')
       process.exit(1)
     }
-    
+
     // Verify local photos exist
     const missingPhotos = []
     for (let i = 1; i <= 20; i++) {
@@ -593,36 +588,36 @@ async function seedDatabase() {
         missingPhotos.push(`cute_cat_${i.toString().padStart(2, '0')}.jpg`)
       }
     }
-    
+
     if (missingPhotos.length > 0) {
       console.error('❌ Missing local cat photos:', missingPhotos)
       console.error('Please ensure all cat photos (cute_cat_01.jpg to cute_cat_20.jpg) are in the public folder')
       process.exit(1)
     }
-    
+
     console.log('✅ All 20 local cat photos found')
-    
+
     const userIds = []
     const catIds = []
-    
+
     // Create users and their cats using local photos
     for (let i = 0; i < demoUsers.length; i++) {
       const userData = demoUsers[i]
       const userId = await createUserAccount(userData)
       if (!userId) continue
-      
+
       userIds.push(userId)
-      
+
       // Use photo number based on user index (1-20, cycling if more users)
       const photoNumber = (i % 20) + 1
-      
+
       // Create 1 cat profile per user using their assigned photo
       const catName = getRandomItem(catNames)
       const breed = getRandomItem(catBreeds)
-      
+
       const catProfileId = await createCatProfile(userId, catName, breed, photoNumber)
       if (!catProfileId) continue
-      
+
       // Create 1-3 photos per cat using the same photo number for consistency
       const numPhotos = Math.floor(Math.random() * 3) + 1
       
@@ -633,43 +628,31 @@ async function seedDatabase() {
         if (catId) {
           catIds.push(catId)
         }
-        
+
         // Small delay between photos
         await new Promise(resolve => setTimeout(resolve, 500))
       }
-      
+
       // Add delay between users to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000))
     }
-    
+
     // Create reactions between users
     if (catIds.length > 0 && userIds.length > 0) {
       await createReactions(catIds, userIds)
     }
-    
+
     console.log('✅ Database seeding completed!')
-    console.log(`📊 Created ${userIds.length} users with ${catIds.length} cat photos`)
-    console.log('🔐 All demo accounts use password: Testing01!')
-    console.log('🏷️ Demo accounts are tagged with is_demo_account: true for easy removal')
+    console.log('')
+    console.log('📊 Created ${userIds.length} users with ${catIds.length} cat photos')
+    console.log('🔑 All demo accounts use password: Testing01!')
+    console.log('⚠️ Demo accounts are tagged with is_demo_account: true for easy removal')
     console.log(`📸 Used ${Math.min(userIds.length, 20)} local cat photos from public folder`)
-    
-    console.log('\n📧 Demo account emails:')
-    demoUsers.slice(0, userIds.length).forEach(user => {
-      console.log(`   • ${user.email}`)
-    })
-    
+
   } catch (error) {
-    console.error('❌ Error during database seeding:', error)
-    console.error('')
-    console.error('💡 Troubleshooting tips:')
-    console.error('   • Ensure you are using the SERVICE_ROLE_KEY, not the ANON_KEY')
-    console.error('   • Check your internet connection')
-    console.error('   • Verify the Supabase URL is correct and starts with https://')
-    console.error('   • Make sure the service role key is not expired')
-    console.error('   • Check if any firewall is blocking the connection')
-    console.error('   • Verify your Supabase project is active and accessible')
+    console.error('❌ Unexpected error during seeding:', error)
   }
 }
 
-// Run the seeding
 seedDatabase()
+

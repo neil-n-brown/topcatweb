@@ -43,6 +43,10 @@ npm run dev
 # For cleaning demo data (run from scripts directory)
 cd /home/project/scripts
 npm run clean-demo
+
+cd scripts
+node seed-database.js    # Seed demo data
+node fixed-clean-demo.js # Clean up when needed
 ```
 
 ## Common Issues
