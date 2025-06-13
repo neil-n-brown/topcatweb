@@ -14,12 +14,6 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
-  // Clear errors when switching modes
-  useEffect(() => {
-    clearError()
-    setMessage('')
-  }, [mode])
-
   // Clear messages after 5 seconds
   useEffect(() => {
     if (message) {
