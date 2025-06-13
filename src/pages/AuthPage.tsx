@@ -48,13 +48,7 @@ export default function AuthPage() {
         await signUp(email, password, username.trim())
         setMessage('Account created successfully! Please check your email to verify your account. 📧✨')
       } else if (mode === 'signin') {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-        if (signInError) {
-          throw signInError
-        }
+        await signIn(email, password)
       } else if (mode === 'reset') {
         await resetPassword(email)
         setMessage('Password reset email sent! Check your inbox. 📬💕')
