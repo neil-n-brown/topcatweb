@@ -53,14 +53,18 @@ serve(async (req) => {
       hasPassword: !!Deno.env.get('SMTP_PASSWORD'),
     })
 
-    // Create SMTP client
+    // Create SMTP client with explicit configuration
     const client = new SmtpClient()
     try {
+      // Configure SMTP with explicit TLS settings
       await client.connectTLS({
         hostname: Deno.env.get('SMTP_HOSTNAME') || '',
         port: parseInt(Deno.env.get('SMTP_PORT') || '587'),
         username: Deno.env.get('SMTP_USERNAME') || '',
         password: Deno.env.get('SMTP_PASSWORD') || '',
+        tls: {
+          rejectUnauthorized: false, // Allow self-signed certificates
+        },
       })
 
       // Prepare email content
@@ -75,12 +79,16 @@ serve(async (req) => {
         Timestamp: ${new Date().toISOString()}
       `
 
-      // Send email
+      // Send email with explicit configuration
       await client.send({
         from: Deno.env.get('SMTP_FROM') || '',
         to: 'knollybwai@gmail.com',
         subject,
         content,
+        html: content.replace(/\n/g, '<br>'), // Add HTML version
+        headers: {
+          'Content-Type': 'text/plain; charset=UTF-8',
+        },
       })
 
       await client.close()
@@ -94,6 +102,12 @@ serve(async (req) => {
       )
     } catch (smtpError) {
       console.error('SMTP Error:', smtpError)
+      // Log more detailed error information
+      if (smtpError instanceof Error) {
+        console.error('Error name:', smtpError.name)
+        console.error('Error message:', smtpError.message)
+        console.error('Error stack:', smtpError.stack)
+      }
       throw new Error(`Failed to send email: ${smtpError.message}`)
     }
   } catch (error) {
