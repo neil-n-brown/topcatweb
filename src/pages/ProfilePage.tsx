@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Camera, Edit3, Heart, TrendingUp, Upload } from 'lucide-react'
+import { Camera, Edit3, Heart, TrendingUp, Upload, MessageSquare } from 'lucide-react'
 import { supabase, Cat } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import FeedbackForm from '../components/FeedbackForm'
 
 interface UserStats {
   totalCats: number
@@ -16,6 +17,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
   const [newUsername, setNewUsername] = useState(user?.username || '')
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -153,6 +155,13 @@ export default function ProfilePage() {
                   <p className="text-sm text-gray-500 mt-1">
                     Member since {new Date(user?.created_at || '').toLocaleDateString()}
                   </p>
+                  <button
+                    onClick={() => setIsFeedbackOpen(true)}
+                    className="mt-4 inline-flex items-center px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-all duration-200 transform hover:scale-105"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Share Feedback
+                  </button>
                 </>
               )}
             </div>
@@ -266,6 +275,9 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Feedback Form Modal */}
+      <FeedbackForm isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </div>
   )
 }
