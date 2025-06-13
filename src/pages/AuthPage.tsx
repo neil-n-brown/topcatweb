@@ -95,7 +95,7 @@ export default function AuthPage() {
     }
   }
 
-  const displayMessage = message
+  const displayMessage = message || error
 
   return (
     <div className="min-h-screen bg-cute-gradient flex items-center justify-center p-4 relative overflow-hidden">
