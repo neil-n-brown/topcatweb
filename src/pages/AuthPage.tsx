@@ -18,7 +18,7 @@ export default function AuthPage() {
   useEffect(() => {
     clearError()
     setMessage('')
-  }, [mode, clearError])
+  }, [mode])
 
   // Clear messages after 5 seconds
   useEffect(() => {
@@ -96,6 +96,7 @@ export default function AuthPage() {
   }
 
   const displayMessage = message || error
+  console.log('displayMessage:', displayMessage, 'message:', message, 'error:', error)
 
   return (
     <div className="min-h-screen bg-cute-gradient flex items-center justify-center p-4 relative overflow-hidden">
