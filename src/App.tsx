@@ -14,6 +14,7 @@ import UserProfilePage from './pages/UserProfilePage'
 import ErrorBoundary from './components/ErrorBoundary'
 import StorageErrorBoundary from './components/StorageErrorBoundary'
 import StorageWarning from './components/StorageWarning'
+import GoogleAnalytics from './components/GoogleAnalytics'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, error } = useAuth()
@@ -111,6 +112,7 @@ function App() {
       <StorageErrorBoundary>
         <AuthProvider>
           <Router>
+            <GoogleAnalytics />
             <Routes>
               {/* Default route - always show landing page first */}
               <Route path="/" element={<LandingPage />} />
