@@ -9,12 +9,20 @@ const __dirname = path.dirname(__filename)
 
 // Try to load environment variables from multiple locations
 // First try the scripts directory, then the parent directory
+console.log('Loading environment variables...')
+console.log('Current directory:', __dirname)
+console.log('Trying to load from:', path.join(__dirname, '.env'))
 dotenv.config({ path: path.join(__dirname, '.env') })
+console.log('Trying to load from:', path.join(__dirname, '..', '.env'))
 dotenv.config({ path: path.join(__dirname, '..', '.env') })
 
 // Supabase configuration
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+console.log('Environment variables loaded:')
+console.log('VITE_SUPABASE_URL:', supabaseUrl ? '✅ Set' : '❌ Not set')
+console.log('SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? '✅ Set' : '❌ Not set')
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ Missing Supabase configuration.')
