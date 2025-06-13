@@ -74,7 +74,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Top Cat <feedback@topcat.com>',
+        from: 'Top Cat <feedback@topcat.pet>',
         to: 'knollybwai@gmail.com',
         subject,
         text: content,
