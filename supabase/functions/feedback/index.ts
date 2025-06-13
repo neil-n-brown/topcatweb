@@ -16,8 +16,12 @@ serve(async (req) => {
     // Get the authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error('No authorization header provided')
       throw new Error('No authorization header')
     }
+
+    // Log the auth header (without the token for security)
+    console.log('Auth header present:', !!authHeader)
 
     // Create Supabase client to verify JWT
     const supabaseClient = createClient(
@@ -32,9 +36,16 @@ serve(async (req) => {
 
     // Verify the JWT token
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
-      throw new Error('Invalid authentication')
+    if (authError) {
+      console.error('Auth error:', authError)
+      throw new Error(`Authentication error: ${authError.message}`)
     }
+    if (!user) {
+      console.error('No user found in session')
+      throw new Error('No user found in session')
+    }
+
+    console.log('User authenticated:', user.email)
 
     const { feedback, suggestFeature, technicalIssue } = await req.json()
 
@@ -73,6 +84,7 @@ serve(async (req) => {
 
     if (!resendResponse.ok) {
       const errorData = await resendResponse.json()
+      console.error('Resend API error:', errorData)
       throw new Error(`Failed to send email: ${errorData.message || 'Unknown error'}`)
     }
 

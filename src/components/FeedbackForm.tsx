@@ -22,8 +22,15 @@ export default function FeedbackForm({ isOpen, onClose }: FeedbackFormProps) {
     try {
       // Get the session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error('No active session');
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Failed to get session');
+      }
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      console.log('Session token:', session.access_token); // Debug log
 
       const response = await fetch('https://hgkjibevclwbwtzxezid.supabase.co/functions/v1/feedback', {
         method: 'POST',
@@ -40,6 +47,7 @@ export default function FeedbackForm({ isOpen, onClose }: FeedbackFormProps) {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Response error:', errorData); // Debug log
         throw new Error(errorData.error || 'Failed to submit feedback');
       }
 
